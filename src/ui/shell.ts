@@ -1,5 +1,11 @@
 import styles from './shell.module.css';
-import { DIFFICULTY_ORDER } from '../game/constants';
+import {
+  BLUE_LINEUP,
+  CUSTOM_SLOT,
+  DEFAULT_CUSTOM_NAME,
+  DIFFICULTY_ORDER,
+  PLAYER_NAME_MAX,
+} from '../game/constants';
 import type { DifficultyId, Score } from '../game/types';
 
 export type ScreenName = 'menu' | 'pause' | 'results' | 'rules' | null;
@@ -24,6 +30,8 @@ const q = <T extends Element>(root: ParentNode, selector: string): T => {
 export class Shell {
   private readonly screens: Record<'menu' | 'pause' | 'results' | 'rules', HTMLElement>;
   private readonly diffButtons: HTMLButtonElement[];
+  private readonly lineupButtons: HTMLButtonElement[];
+  private readonly customInput: HTMLInputElement;
   private readonly soundIcon: HTMLElement;
   private readonly pauseBtn: HTMLButtonElement;
   private readonly titleEl: HTMLElement;
@@ -32,6 +40,8 @@ export class Shell {
   private readonly kickerEl: HTMLElement;
 
   difficulty: DifficultyId = 'pro';
+  playerSlot = CUSTOM_SLOT;
+  customName = '';
   onStart: (() => void) | null = null;
   onResume: (() => void) | null = null;
   onRestart: (() => void) | null = null;
@@ -40,6 +50,7 @@ export class Shell {
   onFullscreen: (() => void) | null = null;
   onSoundToggle: (() => void) | null = null;
   onDifficulty: ((difficulty: DifficultyId) => void) | null = null;
+  onLineup: ((slot: number, customName: string) => void) | null = null;
 
   constructor() {
     const app = document.getElementById('app');
@@ -56,7 +67,7 @@ export class Shell {
             <span class="${styles.brandSub}">SIMULATOR</span>
           </h1>
           <p class="${styles.tagline}">
-            Six balls on the centre line. One hit and you're out.<br />
+            Six a side. Six balls on the centre line. One hit and you're out.<br />
             Catch a live ball to send the thrower out and bring a teammate back in.
           </p>
 
@@ -65,6 +76,29 @@ export class Shell {
               (id) =>
                 `<button type="button" class="${styles.diffBtn}" data-difficulty="${id}">${DIFFICULTY_LABELS[id]}</button>`,
             ).join('')}
+          </div>
+
+          <div class="${styles.lineup}" role="group" aria-label="Choose your player">
+            <p class="${styles.lineupLabel}">PLAY AS</p>
+            <div class="${styles.lineupBtns}">
+              ${BLUE_LINEUP.map(
+                (entry, index) =>
+                  `<button type="button" class="${styles.lineupBtn}" data-lineup="${index}">${entry.name}</button>`,
+              ).join('')}
+            </div>
+            <label class="${styles.nameField}">
+              <span class="${styles.nameLabel}">CUSTOM PLAYER NAME</span>
+              <input
+                class="${styles.nameInput}"
+                data-custom-name
+                type="text"
+                maxlength="${PLAYER_NAME_MAX}"
+                autocomplete="off"
+                spellcheck="false"
+                placeholder="${DEFAULT_CUSTOM_NAME}"
+              />
+            </label>
+            <p class="${styles.nameHint}">Type your own name for the sixth player, or leave it blank for Crispy.</p>
           </div>
 
           <button class="${styles.cta}" data-play type="button">PLAY BALL</button>
@@ -149,7 +183,7 @@ export class Shell {
           <p class="${styles.kicker}">Dodgeball Victoria &middot; WDBF</p>
           <h2 class="${styles.panelTitle} ${styles.panelTitleSm}">RULES</h2>
           <p class="${styles.rulesIntro}">
-            Foam Playing Format, implemented as a 3v3 arcade simulation.
+            Foam Playing Format, implemented as a 6v6 arcade simulation.
           </p>
           <ul class="${styles.rulesList}">
             <li><strong>Six balls, three per team.</strong> They start on the centre line, 1.5m apart (Rule 12).</li>
@@ -242,6 +276,8 @@ export class Shell {
       rules: q(ui, '[data-screen="rules"]'),
     };
     this.diffButtons = [...ui.querySelectorAll<HTMLButtonElement>('[data-difficulty]')];
+    this.lineupButtons = [...ui.querySelectorAll<HTMLButtonElement>('[data-lineup]')];
+    this.customInput = q<HTMLInputElement>(ui, '[data-custom-name]');
     this.soundIcon = q(topControls, '[data-sound-icon]');
     this.pauseBtn = q(topControls, '[data-pause]');
     this.titleEl = q(ui, '[data-result-title]');
@@ -284,8 +320,44 @@ export class Shell {
       });
     }
 
+    for (const btn of this.lineupButtons) {
+      btn.addEventListener('click', () => {
+        const slot = Number(btn.dataset.lineup);
+        if (!Number.isInteger(slot) || slot < 0 || slot >= BLUE_LINEUP.length) return;
+        this.setLineup(slot, this.customName);
+        this.onLineup?.(this.playerSlot, this.customName);
+      });
+    }
+
+    this.customInput.addEventListener('input', () => {
+      this.customName = this.customInput.value.slice(0, PLAYER_NAME_MAX);
+      if (this.customInput.value !== this.customName) this.customInput.value = this.customName;
+      this.setLineup(CUSTOM_SLOT, this.customName);
+      this.onLineup?.(this.playerSlot, this.customName);
+    });
+
     this.setDifficulty(this.difficulty);
+    this.setLineup(this.playerSlot, this.customName);
     this.setMuted(false);
+  }
+
+  setLineup(slot: number, customName: string): void {
+    const requested = Number.isFinite(slot) ? Math.floor(slot) : CUSTOM_SLOT;
+    this.playerSlot = Math.min(BLUE_LINEUP.length - 1, Math.max(0, requested));
+    this.customName = customName.slice(0, PLAYER_NAME_MAX);
+    this.refreshLineup();
+  }
+
+  private refreshLineup(): void {
+    for (const btn of this.lineupButtons) {
+      const slot = Number(btn.dataset.lineup);
+      const fallback = slot === CUSTOM_SLOT ? DEFAULT_CUSTOM_NAME : BLUE_LINEUP[slot]?.name;
+      const label = slot === CUSTOM_SLOT ? this.customName.trim() || DEFAULT_CUSTOM_NAME : fallback;
+      btn.textContent = label || DEFAULT_CUSTOM_NAME;
+      btn.classList.toggle(styles.isActive, slot === this.playerSlot);
+      btn.setAttribute('aria-pressed', slot === this.playerSlot ? 'true' : 'false');
+    }
+    if (this.customInput.value !== this.customName) this.customInput.value = this.customName;
   }
 
   showScreen(name: ScreenName): void {

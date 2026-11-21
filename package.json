@@ -3,7 +3,7 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "A 3v3 browser dodgeball game built with Vite, TypeScript and XState.",
+  "description": "A 6v6 browser dodgeball game built with Vite, TypeScript and XState.",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",

@@ -144,6 +144,28 @@ class Sfx {
     this.hiss({ dur: 0.16, gain: 0.35, freq: 900, q: 0.6, type: 'lowpass', sweep: 200 });
   }
 
+  /** Norris loses his glasses: a pained synth scream plus the call. */
+  headshot(): void {
+    this.hit();
+    this.tone({ freq: 1180, end: 340, dur: 0.62, type: 'sawtooth', gain: 0.19 });
+    this.tone({ freq: 760, end: 260, dur: 0.58, type: 'square', gain: 0.09, delay: 0.03 });
+    this.hiss({ dur: 0.55, gain: 0.16, freq: 2100, sweep: 480, q: 1.1 });
+
+    if (this.muted) return;
+    try {
+      const synth = window.speechSynthesis;
+      if (!synth) return;
+      const utterance = new SpeechSynthesisUtterance('HEADSHOT');
+      utterance.pitch = 2;
+      utterance.rate = 1.1;
+      utterance.volume = 0.9;
+      synth.cancel();
+      synth.speak(utterance);
+    } catch {
+      /* speech synthesis is optional */
+    }
+  }
+
   catchBall(): void {
     this.tone({ freq: 620, end: 660, dur: 0.07, type: 'triangle', gain: 0.22 });
     this.tone({ freq: 880, end: 1320, dur: 0.16, type: 'triangle', gain: 0.22, delay: 0.06 });

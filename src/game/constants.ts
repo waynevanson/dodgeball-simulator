@@ -41,9 +41,11 @@ export const PX_PER_METRE = COURT.w / 18;
 export const PLAYER_RADIUS = 17;
 export const BALL_RADIUS = 10;
 
-export const ROSTER = 3;
+export const ROSTER = 6;
 export const WINS_NEEDED = 3;
 export const BALL_COUNT = 6;
+export const PLAYER_NAME_MAX = 12;
+export const DEFAULT_CUSTOM_NAME = 'Crispy';
 
 /**
  * Foam Playing Format (VDL Rules 1.3.4, 2.1.2, 12.1.2):
@@ -111,17 +113,60 @@ export const PHYS = {
   blockMinSpeed: 380,
 } as const;
 
+/** The fixed blue lineup. The last slot is the player's custom name. */
+export const BLUE_LINEUP: RosterEntry[] = [
+  { name: 'Norris', number: 1, human: false, glasses: true },
+  { name: 'Wayne', number: 2, human: false },
+  { name: 'Alex', number: 3, human: false },
+  { name: 'Alycia', number: 4, human: false },
+  { name: 'Kurt', number: 5, human: false },
+  { name: DEFAULT_CUSTOM_NAME, number: 6, human: false },
+];
+
+export const CUSTOM_SLOT = BLUE_LINEUP.length - 1;
+
+/** Ordinary first names used to generate the red team each page load. */
+const RED_NAMES = [
+  'Jordan',
+  'Maya',
+  'Ethan',
+  'Priya',
+  'Lucas',
+  'Chloe',
+  'Marcus',
+  'Sofia',
+  'Noah',
+  'Grace',
+  'Liam',
+  'Amara',
+  'Oliver',
+  'Nina',
+  'Caleb',
+  'Ruby',
+  'Theo',
+  'Isla',
+  'Isaac',
+  'Tara',
+] as const;
+
+function shuffled<T>(values: readonly T[]): T[] {
+  const copy = [...values];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
+
+function randomRedLineup(): RosterEntry[] {
+  const names = shuffled(RED_NAMES).slice(0, ROSTER);
+  const numbers = shuffled(Array.from({ length: 90 }, (_, i) => i + 10)).slice(0, ROSTER);
+  return names.map((name, index) => ({ name, number: numbers[index], human: false }));
+}
+
 export const ROSTER_DATA: Record<TeamId, RosterEntry[]> = {
-  blue: [
-    { name: 'You', number: 7, human: true },
-    { name: 'Brick', number: 4, human: false },
-    { name: 'Nova', number: 11, human: false },
-  ],
-  red: [
-    { name: 'Rex', number: 9, human: false },
-    { name: 'Ziggy', number: 3, human: false },
-    { name: 'Momo', number: 12, human: false },
-  ],
+  blue: BLUE_LINEUP,
+  red: randomRedLineup(),
 };
 
 export const DIFFICULTIES: Record<DifficultyId, Difficulty> = {

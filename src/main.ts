@@ -6,7 +6,15 @@ import { Input } from './game/input';
 import { render } from './game/renderer';
 import { sfx } from './game/audio';
 import { Shell } from './ui/shell';
-import { COUNTDOWN_SECONDS, DIFFICULTIES, VIEW_H, VIEW_W } from './game/constants';
+import {
+  COUNTDOWN_SECONDS,
+  CUSTOM_SLOT,
+  DIFFICULTIES,
+  PLAYER_NAME_MAX,
+  ROSTER,
+  VIEW_H,
+  VIEW_W,
+} from './game/constants';
 import type { DifficultyId, Hud, HudPlayer, Phase, TeamId } from './game/types';
 import type { Player } from './game/entities';
 
@@ -17,9 +25,16 @@ const SETTINGS_KEY = 'dodgeball.settings';
 interface Settings {
   difficulty: DifficultyId;
   muted: boolean;
+  playerSlot: number;
+  playerName: string;
 }
 
-const DEFAULT_SETTINGS: Settings = { difficulty: 'pro', muted: false };
+const DEFAULT_SETTINGS: Settings = {
+  difficulty: 'pro',
+  muted: false,
+  playerSlot: CUSTOM_SLOT,
+  playerName: '',
+};
 
 function loadSettings(): Settings {
   try {
@@ -30,7 +45,18 @@ function loadSettings(): Settings {
       parsed.difficulty && DIFFICULTIES[parsed.difficulty]
         ? parsed.difficulty
         : DEFAULT_SETTINGS.difficulty;
-    return { difficulty, muted: parsed.muted === true };
+    const playerSlot =
+      typeof parsed.playerSlot === 'number' &&
+      Number.isInteger(parsed.playerSlot) &&
+      parsed.playerSlot >= 0 &&
+      parsed.playerSlot < ROSTER
+        ? parsed.playerSlot
+        : DEFAULT_SETTINGS.playerSlot;
+    const playerName =
+      typeof parsed.playerName === 'string'
+        ? parsed.playerName.slice(0, PLAYER_NAME_MAX)
+        : DEFAULT_SETTINGS.playerName;
+    return { difficulty, muted: parsed.muted === true, playerSlot, playerName };
   } catch {
     return { ...DEFAULT_SETTINGS };
   }
@@ -62,6 +88,8 @@ const world = new GameWorld();
 
 sfx.muted = settings.muted;
 shell.setDifficulty(settings.difficulty);
+shell.setLineup(settings.playerSlot, settings.playerName);
+world.setLineup(settings.playerSlot, settings.playerName);
 shell.setMuted(settings.muted);
 
 const actor = createActor(gameMachine, {
@@ -187,7 +215,10 @@ shell.onStart = () => {
   sfx.resume();
   if (input.usingTouch) void enterFullscreen();
   settings.difficulty = shell.difficulty;
+  settings.playerSlot = shell.playerSlot;
+  settings.playerName = shell.customName;
   saveSettings();
+  world.setLineup(settings.playerSlot, settings.playerName);
   actor.send({ type: 'START', difficulty: shell.difficulty });
 };
 
@@ -209,7 +240,10 @@ shell.onResume = () => {
 shell.onRestart = () => {
   sfx.resume();
   settings.difficulty = shell.difficulty;
+  settings.playerSlot = shell.playerSlot;
+  settings.playerName = shell.customName;
   saveSettings();
+  world.setLineup(settings.playerSlot, settings.playerName);
   actor.send({ type: 'START', difficulty: shell.difficulty });
 };
 
@@ -223,6 +257,14 @@ shell.onDifficulty = (difficulty) => {
   sfx.ui();
   settings.difficulty = difficulty;
   saveSettings();
+};
+
+shell.onLineup = (slot, customName) => {
+  sfx.resume();
+  settings.playerSlot = slot;
+  settings.playerName = customName;
+  saveSettings();
+  world.setLineup(slot, customName);
 };
 
 shell.onSoundToggle = () => {

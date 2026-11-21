@@ -40,15 +40,17 @@ export interface PlayerConfig {
   name: string;
   number: number;
   human: boolean;
+  glasses?: boolean;
 }
 
 export class Player {
   readonly id: string;
   readonly team: TeamId;
   readonly slot: number;
-  readonly name: string;
-  readonly number: number;
-  readonly isHuman: boolean;
+  name: string;
+  number: number;
+  isHuman: boolean;
+  readonly glasses: boolean;
   readonly radius = PLAYER_RADIUS;
 
   readonly ai: AIState = {
@@ -78,6 +80,8 @@ export class Player {
   facing = 0;
   alive = true;
   ball: Ball | null = null;
+  /** Norris's glasses are visible until a ball hits him. */
+  hasGlasses = false;
   charge = 0;
   charging = false;
   dashTime = 0;
@@ -104,6 +108,8 @@ export class Player {
     this.name = config.name;
     this.number = config.number;
     this.isHuman = config.human;
+    this.glasses = config.glasses === true;
+    this.hasGlasses = this.glasses;
     this.reset(0, 0);
   }
 
@@ -122,6 +128,7 @@ export class Player {
     this.facing = this.team === 'blue' ? 0 : Math.PI;
     this.alive = true;
     this.ball = null;
+    this.hasGlasses = this.glasses;
     this.charge = 0;
     this.charging = false;
     this.dashTime = 0;

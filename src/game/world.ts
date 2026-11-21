@@ -2,10 +2,14 @@ import {
   ATTACK_DIST,
   BALL_COUNT,
   BALL_MARK_SPACING,
+  BLUE_LINEUP,
   COURT,
+  CUSTOM_SLOT,
+  DEFAULT_CUSTOM_NAME,
   DIFFICULTIES,
   NEAR_MISS,
   PHYS,
+  PLAYER_NAME_MAX,
   PLAYER_RADIUS,
   ROSTER_DATA,
   SHOT_CLOCK,
@@ -44,6 +48,16 @@ export interface Floater {
   color: string;
   life: number;
   max: number;
+  size?: number;
+}
+
+export interface FallenGlasses {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  rot: number;
+  spin: number;
 }
 
 const ZERO_INTENT: Intent = {
@@ -61,19 +75,12 @@ const CONFETTI_COLORS = ['#5b93ff', '#ff5f73', '#fbbf24', '#7dd3fc', '#f472b6', 
 
 /**
  * Rule 13.1 / 9.3: both teams line up with a foot on the back line.
- * Slot order matches the roster, so the human starts in the middle.
+ * Six players per team spread along the line; the chosen human keeps a slot.
  */
+const BACKLINE_Y = [-225, -135, -45, 45, 135, 225];
 const SPAWNS: Record<TeamId, Array<[number, number]>> = {
-  blue: [
-    [COURT.x + PLAYER_RADIUS + 2, COURT.cy],
-    [COURT.x + PLAYER_RADIUS + 2, COURT.cy - 170],
-    [COURT.x + PLAYER_RADIUS + 2, COURT.cy + 170],
-  ],
-  red: [
-    [COURT.right - PLAYER_RADIUS - 2, COURT.cy],
-    [COURT.right - PLAYER_RADIUS - 2, COURT.cy - 170],
-    [COURT.right - PLAYER_RADIUS - 2, COURT.cy + 170],
-  ],
+  blue: BACKLINE_Y.map((offset) => [COURT.x + PLAYER_RADIUS + 2, COURT.cy + offset]),
+  red: BACKLINE_Y.map((offset) => [COURT.right - PLAYER_RADIUS - 2, COURT.cy + offset]),
 };
 
 /**
@@ -104,11 +111,15 @@ const BALL_SPAWNS: Array<[number, number]> = [
  */
 export class GameWorld {
   readonly players: Player[] = [];
-  readonly human: Player;
+  human!: Player;
   readonly balls: Ball[] = [];
 
   particles: Particle[] = [];
   floaters: Floater[] = [];
+  fallenGlasses: FallenGlasses[] = [];
+
+  private customName = DEFAULT_CUSTOM_NAME;
+  private humanSlot = CUSTOM_SLOT;
 
   time = 0;
   difficulty: Difficulty = DIFFICULTIES.pro;
@@ -153,19 +164,47 @@ export class GameWorld {
             name: data.name,
             number: data.number,
             human: data.human,
+            glasses: data.glasses,
           }),
         );
       });
     }
 
-    const human = this.players.find((p) => p.isHuman);
-    if (!human) throw new Error('GameWorld: roster is missing a human player');
-    this.human = human;
+    this.setLineup(CUSTOM_SLOT, DEFAULT_CUSTOM_NAME);
 
     for (let i = 0; i < BALL_COUNT; i++) this.balls.push(new Ball());
 
     this.setupFormation();
     this.setDifficulty('pro');
+  }
+
+  /**
+   * Choose which blue player the human controls and apply a custom sixth name.
+   * Blank/whitespace custom names fall back to Crispy.
+   */
+  setLineup(humanSlot: number, customName: string): void {
+    const requested = Number.isFinite(humanSlot) ? Math.floor(humanSlot) : CUSTOM_SLOT;
+    this.humanSlot = Math.min(BLUE_LINEUP.length - 1, Math.max(0, requested));
+    const cleaned = customName.trim().replace(/\s+/g, ' ').slice(0, PLAYER_NAME_MAX);
+    this.customName = cleaned || DEFAULT_CUSTOM_NAME;
+
+    const blue = this.players.filter((p) => p.team === 'blue');
+    blue.forEach((player, slot) => {
+      player.name = slot === CUSTOM_SLOT ? this.customName : BLUE_LINEUP[slot].name;
+      player.isHuman = slot === this.humanSlot;
+      player.ai.diff = player.isHuman ? null : this.difficulty;
+    });
+
+    const selected = blue[this.humanSlot];
+    if (selected) this.human = selected;
+  }
+
+  get customPlayerName(): string {
+    return this.customName;
+  }
+
+  get controlledSlot(): number {
+    return this.humanSlot;
   }
 
   // ------------------------------------------------------------------ set up
@@ -256,6 +295,7 @@ export class GameWorld {
   }
 
   private setupFormation(): void {
+    this.fallenGlasses = [];
     for (const p of this.players) {
       const [x, y] = SPAWNS[p.team][p.slot];
       p.reset(x, y);
@@ -721,8 +761,32 @@ export class GameWorld {
     this.ring(player.x, player.y, color, 24);
     this.shake = Math.max(this.shake, 10);
     this.flash = Math.max(this.flash, 0.2);
-    sfx.hit();
+
+    if (player.hasGlasses) {
+      player.hasGlasses = false;
+      this.dropGlasses(player);
+      this.addFloater(player.x, player.y - 62, 'HEADSHOT!', '#ffe9a8', 1.9, 34);
+      this.addFloater(player.x, player.y - 30, 'GLASSES OFF', '#e2e8f0', 1.5, 17);
+      this.shake = Math.max(this.shake, 15);
+      this.flash = Math.max(this.flash, 0.34);
+      sfx.headshot();
+    } else {
+      sfx.hit();
+    }
+
     this.eliminate(player, 'hit');
+  }
+
+  /** Send Norris's spectacles flying off his face and onto the court. */
+  private dropGlasses(player: Player): void {
+    this.fallenGlasses.push({
+      x: player.x + rand(-4, 4),
+      y: player.y - player.radius * 0.35,
+      vx: rand(-150, 150),
+      vy: rand(-220, -90),
+      rot: rand(-0.5, 0.5),
+      spin: rand(-12, 12),
+    });
   }
 
   private doCatch(player: Player, ball: Ball): void {
@@ -806,7 +870,9 @@ export class GameWorld {
     const palette = TEAMS[player.team];
     this.burst(player.x, player.y, palette.main, 20, 1.4, 'spark');
     this.ring(player.x, player.y, palette.light, 30);
-    if (!player.isHuman) this.addFloater(player.x, player.y - 40, 'OUT!', palette.light, 1);
+    if (!player.isHuman && !player.glasses) {
+      this.addFloater(player.x, player.y - 40, 'OUT!', palette.light, 1);
+    }
     this.shake = Math.max(this.shake, cause === 'caught' ? 8 : 11);
     this.flash = Math.max(this.flash, 0.24);
 
@@ -1001,8 +1067,8 @@ export class GameWorld {
     }
   }
 
-  addFloater(x: number, y: number, text: string, color: string, life = 1): void {
-    this.floaters.push({ x, y, text, color, life, max: life });
+  addFloater(x: number, y: number, text: string, color: string, life = 1, size?: number): void {
+    this.floaters.push({ x, y, text, color, life, max: life, size });
     if (this.floaters.length > 30) this.floaters.shift();
   }
 
@@ -1021,6 +1087,18 @@ export class GameWorld {
       }
     }
     if (this.particles.length) this.particles = this.particles.filter((p) => p.life > 0);
+
+    for (const glasses of this.fallenGlasses) {
+      glasses.x += glasses.vx * dt;
+      glasses.y += glasses.vy * dt;
+      const drag = Math.exp(-4.2 * dt);
+      glasses.vx *= drag;
+      glasses.vy *= drag;
+      glasses.rot += glasses.spin * dt;
+      glasses.spin *= Math.exp(-3.4 * dt);
+      glasses.x = Math.max(COURT.x + 22, Math.min(COURT.right - 22, glasses.x));
+      glasses.y = Math.max(COURT.y + 22, Math.min(COURT.bottom - 22, glasses.y));
+    }
 
     for (const f of this.floaters) {
       f.life -= dt;

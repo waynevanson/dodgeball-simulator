@@ -38,6 +38,8 @@ export interface RosterEntry {
   name: string;
   number: number;
   human: boolean;
+  /** Norris wears the spectacles that can be knocked off. */
+  glasses?: boolean;
 }
 
 /** Per-frame movement / action request handed to a player. */

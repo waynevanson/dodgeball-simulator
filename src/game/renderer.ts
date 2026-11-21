@@ -38,6 +38,7 @@ export function render(
   drawQueues(ctx, hud, time);
   drawParticles(ctx, world, 'under');
   drawGroundBalls(ctx, world);
+  drawFallenGlasses(ctx, world);
   drawEliminated(ctx, world);
   drawPlayers(ctx, world, time);
   drawActiveBalls(ctx, world);
@@ -250,6 +251,55 @@ function drawQueues(ctx: CanvasRenderingContext2D, hud: Hud, time: number): void
   }
 }
 
+function drawSpectacles(ctx: CanvasRenderingContext2D, scale = 1): void {
+  ctx.save();
+  ctx.scale(scale, scale);
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  ctx.fillStyle = 'rgba(191, 219, 254, 0.38)';
+  ctx.strokeStyle = '#08111f';
+  ctx.lineWidth = 2.1;
+  for (const lensX of [-5, 5]) {
+    ctx.beginPath();
+    ctx.arc(lensX, 0, 4.3, 0, TAU);
+    ctx.fill();
+    ctx.stroke();
+  }
+
+  ctx.beginPath();
+  ctx.moveTo(-0.8, 0);
+  ctx.lineTo(0.8, 0);
+  ctx.moveTo(-9.2, -0.3);
+  ctx.lineTo(-12.6, -2.1);
+  ctx.moveTo(9.2, -0.3);
+  ctx.lineTo(12.6, -2.1);
+  ctx.stroke();
+
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+  ctx.beginPath();
+  ctx.arc(-6.4, -1.5, 1.1, 0, TAU);
+  ctx.arc(3.6, -1.5, 1.1, 0, TAU);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawFallenGlasses(ctx: CanvasRenderingContext2D, world: GameWorld): void {
+  for (const glasses of world.fallenGlasses) {
+    ctx.save();
+    ctx.translate(glasses.x, glasses.y);
+    ctx.rotate(glasses.rot);
+
+    ctx.beginPath();
+    ctx.ellipse(1.5, 4.5, 13, 5, 0, 0, TAU);
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+    ctx.fill();
+
+    drawSpectacles(ctx, 1.25);
+    ctx.restore();
+  }
+}
+
 function drawBallShape(ctx: CanvasRenderingContext2D, ball: Ball): void {
   const r = ball.radius;
 
@@ -429,6 +479,13 @@ function drawPlayers(ctx: CanvasRenderingContext2D, world: GameWorld, time: numb
     ctx.fillStyle = 'rgba(8, 14, 26, 0.62)';
     ctx.fillText(String(p.number), 0, 1);
 
+    if (p.hasGlasses) {
+      ctx.save();
+      ctx.translate(0, -p.radius * 0.56);
+      drawSpectacles(ctx, 0.82);
+      ctx.restore();
+    }
+
     ctx.restore();
 
     if (entering) {
@@ -568,7 +625,7 @@ function drawFloaters(ctx: CanvasRenderingContext2D, world: GameWorld): void {
     const t = clamp(f.life / f.max, 0, 1);
     const pop = 1 + (1 - t) * 0.18;
     ctx.globalAlpha = Math.min(1, t * 1.6);
-    ctx.font = `900 ${15 * pop}px ${FONT}`;
+    ctx.font = `900 ${(f.size ?? 15) * pop}px ${FONT}`;
     ctx.lineWidth = 3.5;
     ctx.strokeStyle = 'rgba(4, 7, 12, 0.72)';
     ctx.strokeText(f.text, f.x, f.y);

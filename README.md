@@ -1,6 +1,6 @@
 # Dodgeball Simulator
 
-A 3-on-3 browser dodgeball game built around the **Dodgeball Victoria / WDBF Foam
+A 6-on-6 browser dodgeball game built around the **Dodgeball Victoria / WDBF Foam
 Playing Format** rules: opening rush, attack-line ball activation, catches that
 bring a teammate back in, live-ball blocking, and a ten-second advantage clock.
 
@@ -8,7 +8,9 @@ bring a teammate back in, live-ball blocking, and a ten-second advantage clock.
 
 ![Gameplay](docs/screenshot.png)
 
-- 3v3 with AI teammates and opponents, three difficulty levels
+- 6v6 with AI teammates and opponents, three difficulty levels
+- Pick your player from the blue lineup or enter a custom name for the sixth slot
+- Norris wears glasses; hit him and he yells **HEADSHOT** as they fly off
 - Mouse + keyboard on desktop, on-screen stick + buttons on phones
 - Canvas rendering, WebAudio sound effects, zero external assets
 - Vite + strict TypeScript, UI styled with CSS Modules
@@ -87,7 +89,9 @@ These are documented rather than hidden:
 - **Match length.** VDL matches are two 20-minute halves of timed sets. A browser
   game uses “first to 3 sets”, with each set ending only when a team is fully
   eliminated (foam format), plus sudden death at 2 minutes of set time.
-- **Team size.** 3v3 instead of 6v6 so a whole court fits on one screen.
+- **Roster.** Six players a side, matching the foam format. Blue is a fixed
+  lineup (Norris, Wayne, Alex, Alycia, Kurt and a custom-name slot); the red
+  team gets six randomly generated ordinary names each page load.
 - **Administration.** Uniforms, cards, referees, timeouts, substitutions, ball
   retrievers and rule challenges are out of scope. Invalid throws are tracked as
   warnings, matching the referee's discretion in Rule 16.3.
