@@ -50,6 +50,10 @@ your first queued teammate re-enters over the back line. Holding a ball lets you
 block instead of catch. The team with the ball advantage has ten seconds to
 throw or it forfeits every ball it holds. First to 3 sets wins.
 
+**Reading the ball colours:** a hot amber ball with a glow can still get you
+out. A cold grey ball with a dashed, pulsing ring is dead (or an inactive throw)
+and is safe to pick up.
+
 ---
 
 ## Rules implementation

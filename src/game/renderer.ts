@@ -258,11 +258,15 @@ function drawBallShape(ctx: CanvasRenderingContext2D, ball: Ball): void {
   ctx.fillStyle = 'rgba(0, 0, 0, 0.34)';
   ctx.fill();
 
-  const powered = ball.live && ball.canOut;
-  if (powered) {
+  // Only a live, armed ball can eliminate anyone: that is the one that glows
+  // hot. Everything else (dead balls on the floor and inactive throws) is
+  // rendered cold so it reads as safe to pick up.
+  const dangerous = ball.live && ball.canOut;
+  const warm = dangerous || (!!ball.heldBy && ball.armed);
+  if (dangerous) {
     ctx.save();
-    ctx.shadowColor = 'rgba(251, 191, 36, 0.75)';
-    ctx.shadowBlur = 16;
+    ctx.shadowColor = 'rgba(251, 191, 36, 0.8)';
+    ctx.shadowBlur = 18;
   }
 
   const g = ctx.createRadialGradient(
@@ -273,21 +277,20 @@ function drawBallShape(ctx: CanvasRenderingContext2D, ball: Ball): void {
     ball.y,
     r * 1.15,
   );
-  if (ball.armed) {
+  if (warm) {
     g.addColorStop(0, '#fff6cf');
     g.addColorStop(0.42, '#fbbf24');
     g.addColorStop(1, '#b96c08');
   } else {
-    // Unarmed balls look cold until they cross the attack line.
-    g.addColorStop(0, '#f1f5f9');
-    g.addColorStop(0.42, '#94a3b8');
-    g.addColorStop(1, '#475569');
+    g.addColorStop(0, '#f8fafc');
+    g.addColorStop(0.45, '#94a3b8');
+    g.addColorStop(1, '#3f4c60');
   }
   ctx.beginPath();
   ctx.arc(ball.x, ball.y, r, 0, TAU);
   ctx.fillStyle = g;
   ctx.fill();
-  if (powered) ctx.restore();
+  if (dangerous) ctx.restore();
 
   ctx.save();
   ctx.beginPath();
@@ -295,13 +298,13 @@ function drawBallShape(ctx: CanvasRenderingContext2D, ball: Ball): void {
   ctx.clip();
   ctx.translate(ball.x, ball.y);
   ctx.rotate(ball.spin);
-  ctx.fillStyle = ball.armed ? 'rgba(40, 26, 6, 0.5)' : 'rgba(15, 23, 42, 0.45)';
+  ctx.fillStyle = warm ? 'rgba(40, 26, 6, 0.5)' : 'rgba(15, 23, 42, 0.45)';
   ctx.fillRect(-r * 1.6, -r * 0.2, r * 3.2, r * 0.4);
   ctx.restore();
 
   ctx.beginPath();
   ctx.arc(ball.x, ball.y, r, 0, TAU);
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+  ctx.strokeStyle = warm ? 'rgba(255, 255, 255, 0.3)' : 'rgba(226, 232, 240, 0.45)';
   ctx.lineWidth = 1;
   ctx.stroke();
 
@@ -320,12 +323,16 @@ function drawBallShape(ctx: CanvasRenderingContext2D, ball: Ball): void {
 function drawGroundBalls(ctx: CanvasRenderingContext2D, world: GameWorld): void {
   for (const ball of world.balls) {
     if (ball.heldBy || ball.live) continue;
-    const armed = ball.armed;
+    // Dead balls are loot: a soft pulsing ring says "pick me up".
+    const pulse = 0.5 + Math.sin(world.time * 2.3 + ball.bob) * 0.5;
+    ctx.save();
+    ctx.setLineDash([3, 6]);
     ctx.beginPath();
-    ctx.arc(ball.x, ball.y, 15.5, 0, TAU);
-    ctx.strokeStyle = armed ? 'rgba(251, 191, 36, 0.1)' : 'rgba(148, 163, 184, 0.12)';
+    ctx.arc(ball.x, ball.y, 16 + pulse * 3.5, 0, TAU);
+    ctx.strokeStyle = `rgba(226, 232, 240, ${0.1 + pulse * 0.14})`;
     ctx.lineWidth = 1.5;
     ctx.stroke();
+    ctx.restore();
     drawBallShape(ctx, ball);
   }
 }

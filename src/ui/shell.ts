@@ -50,6 +50,7 @@ export class Shell {
     ui.innerHTML = `
       <section class="${styles.screen}" data-screen="menu">
         <div class="${styles.panel}">
+          <div class="${styles.panelInner}">
           <h1 class="${styles.brand}">
             <span class="${styles.brandMain}">DODGE<span class="${styles.brandBall}">BALL</span></span>
             <span class="${styles.brandSub}">SIMULATOR</span>
@@ -108,11 +109,13 @@ export class Shell {
             attack line to arm it. Empty hands catch; a ball in hand blocks. Don't cross the
             centre line and don't hold the ball for 10 seconds.
           </p>
+          </div>
         </div>
       </section>
 
       <section class="${styles.screen} ${styles.hidden}" data-screen="pause">
         <div class="${styles.panel} ${styles.panelSmall}">
+          <div class="${styles.panelInner}">
           <p class="${styles.kicker}">Time out</p>
           <h2 class="${styles.panelTitle} ${styles.panelTitleSm}">PAUSED</h2>
           <div class="${styles.actions}">
@@ -121,11 +124,13 @@ export class Shell {
             <button class="${styles.ghost}" data-menu type="button">MAIN MENU</button>
           </div>
           <p class="${styles.note}">Press <kbd>Esc</kbd> to get back in.</p>
+          </div>
         </div>
       </section>
 
       <section class="${styles.screen} ${styles.hidden}" data-screen="results">
         <div class="${styles.panel} ${styles.panelSmall}">
+          <div class="${styles.panelInner}">
           <p class="${styles.kicker}" data-result-kicker>Final whistle</p>
           <h2 class="${styles.panelTitle}" data-result-title>VICTORY</h2>
           <p class="${styles.resultScore}" data-result-score>3 &ndash; 1</p>
@@ -134,11 +139,13 @@ export class Shell {
             <button class="${styles.cta}" data-again type="button">PLAY AGAIN</button>
             <button class="${styles.ghost}" data-results-menu type="button">MAIN MENU</button>
           </div>
+          </div>
         </div>
       </section>
 
       <section class="${styles.screen} ${styles.hidden}" data-screen="rules">
         <div class="${styles.panel} ${styles.panelWide}">
+          <div class="${styles.panelInner}">
           <p class="${styles.kicker}">Dodgeball Victoria &middot; WDBF</p>
           <h2 class="${styles.panelTitle} ${styles.panelTitleSm}">RULES</h2>
           <p class="${styles.rulesIntro}">
@@ -170,6 +177,7 @@ export class Shell {
               rel="noopener noreferrer"
             >READ THE OFFICIAL RULES</a>
             <button class="${styles.cta}" data-rules-back type="button">GOT IT</button>
+          </div>
           </div>
         </div>
       </section>
