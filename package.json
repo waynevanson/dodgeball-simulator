@@ -1,0 +1,24 @@
+{
+  "name": "dodgeball-simulator",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "A 3v3 browser dodgeball game built with Vite, TypeScript and XState.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "xstate": "^5.19.2"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2",
+    "vite": "^6.0.5"
+  },
+  "packageManager": "pnpm@10.34.5",
+  "engines": {
+    "node": ">=20"
+  }
+}
