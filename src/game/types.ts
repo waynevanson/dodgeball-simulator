@@ -79,7 +79,6 @@ export interface Hud {
   shot: ShotClock;
   suddenDeath: boolean;
   rushActive: boolean;
-  warnings: Record<TeamId, number>;
   setElapsed: number;
   /** Larger type + shorter hints for phones. */
   compact: boolean;

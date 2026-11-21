@@ -174,16 +174,6 @@ export class Shell {
         </div>
       </section>
 
-      <div class="${styles.rotateOverlay}">
-        <div class="${styles.rotateCard}">
-          <div class="${styles.rotatePhone}" aria-hidden="true"></div>
-          <h2 class="${styles.rotateTitle}">ROTATE YOUR PHONE</h2>
-          <p class="${styles.rotateText}">
-            Dodgeball needs a wide court. Turn your phone sideways for the full arena.
-          </p>
-          <button class="${styles.ghost}" data-portrait-ok type="button">PLAY ANYWAY</button>
-        </div>
-      </div>
     `;
     app.append(ui);
 
@@ -209,6 +199,20 @@ export class Shell {
       </button>
     `;
     app.append(topControls);
+
+    const rotate = document.createElement('div');
+    rotate.className = styles.rotateOverlay;
+    rotate.innerHTML = `
+      <div class="${styles.rotateCard}">
+        <div class="${styles.rotatePhone}" aria-hidden="true"></div>
+        <h2 class="${styles.rotateTitle}">ROTATE YOUR PHONE</h2>
+        <p class="${styles.rotateText}">
+          Dodgeball needs a wide court. Turn your phone sideways for the full arena.
+        </p>
+        <button class="${styles.ghost}" data-portrait-ok type="button">PLAY ANYWAY</button>
+      </div>
+    `;
+    app.append(rotate);
 
     const touch = document.createElement('div');
     touch.id = 'touch';
@@ -251,7 +255,7 @@ export class Shell {
     q<HTMLButtonElement>(ui, '[data-rules-back]').addEventListener('click', () =>
       this.showScreen('menu'),
     );
-    q<HTMLButtonElement>(ui, '[data-portrait-ok]').addEventListener('click', () => {
+    q<HTMLButtonElement>(rotate, '[data-portrait-ok]').addEventListener('click', () => {
       document.body.classList.add('portrait-ok');
     });
 

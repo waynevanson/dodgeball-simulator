@@ -488,6 +488,7 @@ export class GameWorld {
       player.charge = 0;
       ball.heldBy = null;
       ball.live = false;
+      ball.team = null;
       ball.armed = true;
       ball.rushBall = false;
       ball.thrower = null;
@@ -597,6 +598,9 @@ export class GameWorld {
     ball.rushBall = false;
     ball.validAttempt = false;
     ball.warningIssued = false;
+    ball.releasePositions = this.players
+      .filter((p) => p.alive && p.team !== player.team)
+      .map((p) => ({ x: p.x, y: p.y }));
     ball.ignore = null;
     ball.ignoreTime = 0;
 
@@ -685,12 +689,21 @@ export class GameWorld {
     }
   }
 
-  /** Rule 16.1: a valid attempt lands or passes within a metre of an opponent. */
+  /**
+   * Rule 16.1: a valid attempt lands or passes within a metre of an opponent,
+   * or of where an opponent stood when the ball was released.
+   */
   private checkAttempt(ball: Ball): void {
     if (!ball.live || ball.validAttempt) return;
+    for (const pos of ball.releasePositions) {
+      if (dist(ball.x, ball.y, pos.x, pos.y) < NEAR_MISS) {
+        ball.validAttempt = true;
+        return;
+      }
+    }
     for (const player of this.players) {
       if (!player.alive || player.team === ball.throwerTeam) continue;
-      if (dist(ball.x, ball.y, player.x, player.y) < NEAR_MISS + player.radius) {
+      if (dist(ball.x, ball.y, player.x, player.y) < NEAR_MISS) {
         ball.validAttempt = true;
         return;
       }

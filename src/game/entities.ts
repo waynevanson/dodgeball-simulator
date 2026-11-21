@@ -301,6 +301,8 @@ export class Ball {
   /** Rule 16.1: did the throw pass within 1m of an opponent? */
   validAttempt = false;
   warningIssued = false;
+  /** Opponent positions at the moment the ball was released. */
+  releasePositions: Array<{ x: number; y: number }> = [];
   ignore: Player | null = null;
   ignoreTime = 0;
 
@@ -332,6 +334,7 @@ export class Ball {
     this.touched = false;
     this.validAttempt = false;
     this.warningIssued = false;
+    this.releasePositions = [];
     this.ignore = null;
     this.ignoreTime = 0;
   }

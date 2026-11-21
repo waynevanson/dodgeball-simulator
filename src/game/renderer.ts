@@ -627,15 +627,6 @@ function drawTeamHud(ctx: CanvasRenderingContext2D, hud: Hud, team: TeamId): voi
     }
   }
 
-  // Rule 16.3 warnings (referee discretion, tracked for transparency).
-  if (hud.warnings[team] > 0) {
-    const wx = x0 + dir * (compact ? 148 : 132);
-    ctx.font = `800 ${compact ? 11 : 8}px ${MONO}`;
-    ctx.textAlign = 'center';
-    ctx.fillStyle = 'rgba(251, 191, 36, 0.85)';
-    ctx.fillText(`!${hud.warnings[team]}`, wx, 29);
-  }
-
   const roster = hud.roster[team];
   roster.forEach((p, i) => {
     const px = x0 + dir * ((compact ? 13 : 10) + i * (compact ? 36 : 30));

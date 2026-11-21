@@ -340,7 +340,6 @@ function frame(now: number): void {
     shot: { team: world.shotTeam, timeLeft: world.shotClock },
     suddenDeath: world.suddenDeath,
     rushActive: world.rushActive,
-    warnings: { ...world.warnings },
     setElapsed: world.setElapsed,
     compact: input.usingTouch || window.innerWidth < 980,
   };

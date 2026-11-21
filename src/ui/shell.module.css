@@ -587,6 +587,15 @@ body:global(.touch-mode) .topControls {
 
 /* --------------------------------------------------- phone / small screens */
 
+.mobileHint {
+  display: none;
+  margin: 12px auto 0;
+  max-width: 44ch;
+  font-size: 11px;
+  line-height: 1.5;
+  color: #64748b;
+}
+
 @media (max-height: 520px) {
   .panel {
     padding: 12px 18px;
@@ -641,15 +650,6 @@ body:global(.touch-mode) .topControls {
   .rulesNote {
     margin-top: 10px;
   }
-}
-
-.mobileHint {
-  display: none;
-  margin: 12px auto 0;
-  max-width: 44ch;
-  font-size: 11px;
-  line-height: 1.5;
-  color: #64748b;
 }
 
 /* ------------------------------------------------------- rotate overlay */
