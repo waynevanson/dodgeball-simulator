@@ -3,16 +3,14 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "A 6v6 browser dodgeball game built with Vite, TypeScript and XState.",
+  "description": "A 6v6 browser dodgeball game: a small ECS rendered with the Canvas 2D API.",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit"
   },
-  "dependencies": {
-    "xstate": "^5.19.2"
-  },
+  "dependencies": {},
   "devDependencies": {
     "typescript": "^5.7.2",
     "vite": "^6.0.5"

@@ -10,9 +10,9 @@ import {
   VIEW_W,
   WINS_NEEDED,
 } from './constants';
+import type { EcsWorld } from '../ecs/core';
 import { clamp, easeOutCubic, roundRect, TAU } from './math';
-import type { Ball } from './entities';
-import type { GameWorld } from './world';
+import { balls, carriedBall, human, players, type BallView } from './queries';
 import type { Hud, TeamId } from './types';
 import type { Input } from './input';
 
@@ -21,15 +21,16 @@ const MONO = 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospac
 
 export function render(
   ctx: CanvasRenderingContext2D,
-  world: GameWorld,
+  world: EcsWorld,
   hud: Hud,
   input: Input,
   time: number,
 ): void {
+  const feedback = world.resource('feedback');
   ctx.save();
 
-  if (world.shake > 0.4) {
-    const s = world.shake * 0.42;
+  if (feedback.shake > 0.4) {
+    const s = feedback.shake * 0.42;
     ctx.translate((Math.random() * 2 - 1) * s, (Math.random() * 2 - 1) * s);
   }
 
@@ -52,6 +53,7 @@ export function render(
   drawFlash(ctx, world);
 }
 
+// ------------------------------------------------------------------ world art
 // ------------------------------------------------------------------ world art
 
 function drawBackdrop(ctx: CanvasRenderingContext2D, time: number): void {
@@ -284,10 +286,12 @@ function drawSpectacles(ctx: CanvasRenderingContext2D, scale = 1): void {
   ctx.restore();
 }
 
-function drawFallenGlasses(ctx: CanvasRenderingContext2D, world: GameWorld): void {
-  for (const glasses of world.fallenGlasses) {
+function drawFallenGlasses(ctx: CanvasRenderingContext2D, world: EcsWorld): void {
+  for (const entity of world.query('glasses')) {
+    const transform = world.get(entity, 'transform')!;
+    const glasses = world.get(entity, 'glasses')!;
     ctx.save();
-    ctx.translate(glasses.x, glasses.y);
+    ctx.translate(transform.x, transform.y);
     ctx.rotate(glasses.rot);
 
     ctx.beginPath();
@@ -300,19 +304,20 @@ function drawFallenGlasses(ctx: CanvasRenderingContext2D, world: GameWorld): voi
   }
 }
 
-function drawBallShape(ctx: CanvasRenderingContext2D, ball: Ball): void {
-  const r = ball.radius;
+function drawBallShape(ctx: CanvasRenderingContext2D, ball: BallView): void {
+  const { transform: body, state, tag, held } = ball;
+  const r = body.radius;
 
   ctx.beginPath();
-  ctx.ellipse(ball.x + 2, ball.y + r * 0.62, r * 0.95, r * 0.5, 0, 0, TAU);
+  ctx.ellipse(body.x + 2, body.y + r * 0.62, r * 0.95, r * 0.5, 0, 0, TAU);
   ctx.fillStyle = 'rgba(0, 0, 0, 0.34)';
   ctx.fill();
 
   // Only a live, armed ball can eliminate anyone: that is the one that glows
   // hot. Everything else (dead balls on the floor and inactive throws) is
   // rendered cold so it reads as safe to pick up.
-  const dangerous = ball.live && ball.canOut;
-  const warm = dangerous || (!!ball.heldBy && ball.armed);
+  const dangerous = state.live && state.canOut;
+  const warm = dangerous || (held.by !== null && state.armed);
   if (dangerous) {
     ctx.save();
     ctx.shadowColor = 'rgba(251, 191, 36, 0.8)';
@@ -320,11 +325,11 @@ function drawBallShape(ctx: CanvasRenderingContext2D, ball: Ball): void {
   }
 
   const g = ctx.createRadialGradient(
-    ball.x - r * 0.36,
-    ball.y - r * 0.42,
+    body.x - r * 0.36,
+    body.y - r * 0.42,
     r * 0.12,
-    ball.x,
-    ball.y,
+    body.x,
+    body.y,
     r * 1.15,
   );
   if (warm) {
@@ -337,32 +342,32 @@ function drawBallShape(ctx: CanvasRenderingContext2D, ball: Ball): void {
     g.addColorStop(1, '#3f4c60');
   }
   ctx.beginPath();
-  ctx.arc(ball.x, ball.y, r, 0, TAU);
+  ctx.arc(body.x, body.y, r, 0, TAU);
   ctx.fillStyle = g;
   ctx.fill();
   if (dangerous) ctx.restore();
 
   ctx.save();
   ctx.beginPath();
-  ctx.arc(ball.x, ball.y, r, 0, TAU);
+  ctx.arc(body.x, body.y, r, 0, TAU);
   ctx.clip();
-  ctx.translate(ball.x, ball.y);
-  ctx.rotate(ball.spin);
+  ctx.translate(body.x, body.y);
+  ctx.rotate(tag.spin);
   ctx.fillStyle = warm ? 'rgba(40, 26, 6, 0.5)' : 'rgba(15, 23, 42, 0.45)';
   ctx.fillRect(-r * 1.6, -r * 0.2, r * 3.2, r * 0.4);
   ctx.restore();
 
   ctx.beginPath();
-  ctx.arc(ball.x, ball.y, r, 0, TAU);
+  ctx.arc(body.x, body.y, r, 0, TAU);
   ctx.strokeStyle = warm ? 'rgba(255, 255, 255, 0.3)' : 'rgba(226, 232, 240, 0.45)';
   ctx.lineWidth = 1;
   ctx.stroke();
 
-  if (!ball.armed) {
+  if (!state.armed) {
     ctx.save();
     ctx.setLineDash([3, 4]);
     ctx.beginPath();
-    ctx.arc(ball.x, ball.y, r + 5, 0, TAU);
+    ctx.arc(body.x, body.y, r + 5, 0, TAU);
     ctx.strokeStyle = 'rgba(203, 213, 225, 0.65)';
     ctx.lineWidth = 1.3;
     ctx.stroke();
@@ -370,15 +375,16 @@ function drawBallShape(ctx: CanvasRenderingContext2D, ball: Ball): void {
   }
 }
 
-function drawGroundBalls(ctx: CanvasRenderingContext2D, world: GameWorld): void {
-  for (const ball of world.balls) {
-    if (ball.heldBy || ball.live) continue;
+function drawGroundBalls(ctx: CanvasRenderingContext2D, world: EcsWorld): void {
+  const clock = world.resource('clock');
+  for (const ball of balls(world)) {
+    if (ball.held.by !== null || ball.state.live) continue;
     // Dead balls are loot: a soft pulsing ring says "pick me up".
-    const pulse = 0.5 + Math.sin(world.time * 2.3 + ball.bob) * 0.5;
+    const pulse = 0.5 + Math.sin(clock.sim * 2.3 + ball.tag.bob) * 0.5;
     ctx.save();
     ctx.setLineDash([3, 6]);
     ctx.beginPath();
-    ctx.arc(ball.x, ball.y, 16 + pulse * 3.5, 0, TAU);
+    ctx.arc(ball.transform.x, ball.transform.y, 16 + pulse * 3.5, 0, TAU);
     ctx.strokeStyle = `rgba(226, 232, 240, ${0.1 + pulse * 0.14})`;
     ctx.lineWidth = 1.5;
     ctx.stroke();
@@ -387,31 +393,32 @@ function drawGroundBalls(ctx: CanvasRenderingContext2D, world: GameWorld): void 
   }
 }
 
-function drawActiveBalls(ctx: CanvasRenderingContext2D, world: GameWorld): void {
-  for (const ball of world.balls) {
-    if (ball.heldBy || !ball.live) continue;
-    for (const trail of ball.trail) {
+function drawActiveBalls(ctx: CanvasRenderingContext2D, world: EcsWorld): void {
+  for (const ball of balls(world)) {
+    if (ball.held.by !== null || !ball.state.live) continue;
+    for (const trail of ball.trail.points) {
       ctx.beginPath();
-      ctx.arc(trail.x, trail.y, ball.radius * 0.85, 0, TAU);
-      ctx.fillStyle = ball.canOut
+      ctx.arc(trail.x, trail.y, ball.transform.radius * 0.85, 0, TAU);
+      ctx.fillStyle = ball.state.canOut
         ? `rgba(251, 191, 36, ${0.04 + trail.a * 0.16})`
         : `rgba(148, 163, 184, ${0.03 + trail.a * 0.1})`;
       ctx.fill();
     }
     drawBallShape(ctx, ball);
   }
-  for (const ball of world.balls) {
-    if (ball.heldBy) drawBallShape(ctx, ball);
+  for (const ball of balls(world)) {
+    if (ball.held.by !== null) drawBallShape(ctx, ball);
   }
 }
 
-function drawPlayers(ctx: CanvasRenderingContext2D, world: GameWorld, time: number): void {
-  for (const p of world.players) {
-    if (!p.alive) continue;
-    const palette = TEAMS[p.team];
-    const entering = p.isEntering;
+function drawPlayers(ctx: CanvasRenderingContext2D, world: EcsWorld, time: number): void {
+  for (const view of players(world)) {
+    const { transform: p, tag, condition, action, cooldowns } = view;
+    if (!condition.alive) continue;
+    const palette = TEAMS[tag.team];
+    const entering = condition.enteringTime > 0;
 
-    for (const trail of p.trail) {
+    for (const trail of view.trail.points) {
       ctx.beginPath();
       ctx.arc(trail.x, trail.y, p.radius * (0.5 + trail.a * 0.45), 0, TAU);
       ctx.globalAlpha = 0.05 + trail.a * 0.2;
@@ -425,8 +432,8 @@ function drawPlayers(ctx: CanvasRenderingContext2D, world: GameWorld, time: numb
     ctx.fillStyle = 'rgba(0, 0, 0, 0.38)';
     ctx.fill();
 
-    if (p.catchWindow > 0) {
-      const k = 1 - p.catchWindow / PHYS.catchWindow;
+    if (cooldowns.catchWindow > 0) {
+      const k = 1 - cooldowns.catchWindow / PHYS.catchWindow;
       ctx.beginPath();
       ctx.arc(p.x, p.y, p.radius + 7 + k * 16, 0, TAU);
       ctx.strokeStyle = `rgba(226, 232, 240, ${0.6 * (1 - k)})`;
@@ -459,10 +466,10 @@ function drawPlayers(ctx: CanvasRenderingContext2D, world: GameWorld, time: numb
     ctx.fillStyle = g;
     ctx.fill();
 
-    if (p.hitFlash > 0) {
+    if (condition.hitFlash > 0) {
       ctx.beginPath();
       ctx.arc(0, 0, p.radius, 0, TAU);
-      ctx.fillStyle = `rgba(255, 255, 255, ${Math.min(0.85, p.hitFlash)})`;
+      ctx.fillStyle = `rgba(255, 255, 255, ${Math.min(0.85, condition.hitFlash)})`;
       ctx.fill();
     }
 
@@ -477,9 +484,9 @@ function drawPlayers(ctx: CanvasRenderingContext2D, world: GameWorld, time: numb
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillStyle = 'rgba(8, 14, 26, 0.62)';
-    ctx.fillText(String(p.number), 0, 1);
+    ctx.fillText(String(tag.number), 0, 1);
 
-    if (p.hasGlasses) {
+    if (condition.hasGlasses) {
       ctx.save();
       ctx.translate(0, -p.radius * 0.56);
       drawSpectacles(ctx, 0.82);
@@ -499,21 +506,21 @@ function drawPlayers(ctx: CanvasRenderingContext2D, world: GameWorld, time: numb
       ctx.restore();
     }
 
-    if (p.charging) {
+    if (action.charging) {
       ctx.beginPath();
       ctx.arc(
         p.x,
         p.y,
         p.radius + 8,
         -Math.PI / 2,
-        -Math.PI / 2 + TAU * clamp(p.charge, 0, 1),
+        -Math.PI / 2 + TAU * clamp(action.charge, 0, 1),
       );
-      ctx.strokeStyle = p.charge > 0.985 ? '#fff6cf' : '#fbbf24';
+      ctx.strokeStyle = action.charge > 0.985 ? '#fff6cf' : '#fbbf24';
       ctx.lineWidth = 3.2;
       ctx.lineCap = 'round';
       ctx.stroke();
 
-      const len = 60 + 250 * clamp(p.charge, 0, 1);
+      const len = 60 + 250 * clamp(action.charge, 0, 1);
       const offset = p.radius + 11;
       ctx.save();
       ctx.setLineDash([2, 9]);
@@ -529,7 +536,7 @@ function drawPlayers(ctx: CanvasRenderingContext2D, world: GameWorld, time: numb
       ctx.restore();
     }
 
-    if (p.isHuman) {
+    if (tag.isHuman) {
       ctx.beginPath();
       ctx.arc(p.x, p.y, p.radius + 10 + Math.sin(time * 4) * 1.6, 0, TAU);
       ctx.strokeStyle = 'rgba(232, 238, 252, 0.42)';
@@ -546,12 +553,15 @@ function drawPlayers(ctx: CanvasRenderingContext2D, world: GameWorld, time: numb
   }
 }
 
-function drawEliminated(ctx: CanvasRenderingContext2D, world: GameWorld): void {
-  for (const p of world.players) {
-    if (p.alive) continue;
-    const palette = TEAMS[p.team];
-    const { outX: x, outY: y } = p;
-    const fade = clamp(1 - (world.time - p.outAt) / 2.2, 0.25, 1);
+function drawEliminated(ctx: CanvasRenderingContext2D, world: EcsWorld): void {
+  const clock = world.resource('clock');
+  for (const view of players(world)) {
+    const { condition, tag } = view;
+    if (condition.alive) continue;
+    const palette = TEAMS[tag.team];
+    const x = condition.outX;
+    const y = condition.outY;
+    const fade = clamp(1 - (clock.sim - condition.outAt) / 2.2, 0.25, 1);
     ctx.save();
     ctx.globalAlpha = 0.3 * fade;
     ctx.strokeStyle = 'rgba(148, 163, 184, 0.4)';
@@ -574,20 +584,22 @@ function drawEliminated(ctx: CanvasRenderingContext2D, world: GameWorld): void {
 
 function drawParticles(
   ctx: CanvasRenderingContext2D,
-  world: GameWorld,
+  world: EcsWorld,
   layer: 'under' | 'over',
 ): void {
   ctx.save();
-  for (const p of world.particles) {
-    if (layer === 'under' && p.type !== 'dust') continue;
-    if (layer === 'over' && p.type === 'dust') continue;
-    const t = clamp(p.life / p.max, 0, 1);
+  for (const entity of world.query('particle')) {
+    const p = world.get(entity, 'transform')!;
+    const particle = world.get(entity, 'particle')!;
+    if (layer === 'under' && particle.type !== 'dust') continue;
+    if (layer === 'over' && particle.type === 'dust') continue;
+    const t = clamp(particle.life / particle.max, 0, 1);
 
-    if (p.type === 'ring') {
+    if (particle.type === 'ring') {
       const k = 1 - t;
       ctx.beginPath();
-      ctx.arc(p.x, p.y, p.size + k * 46, 0, TAU);
-      ctx.strokeStyle = p.color;
+      ctx.arc(p.x, p.y, particle.size + k * 46, 0, TAU);
+      ctx.strokeStyle = particle.color;
       ctx.globalAlpha = t * 0.7;
       ctx.lineWidth = 3 * t + 0.6;
       ctx.stroke();
@@ -595,46 +607,49 @@ function drawParticles(
       continue;
     }
 
-    if (p.type === 'confetti') {
+    if (particle.type === 'confetti') {
       ctx.save();
       ctx.translate(p.x, p.y);
-      ctx.rotate(p.spin);
+      ctx.rotate(particle.spin);
       ctx.globalAlpha = Math.min(1, t * 2);
-      ctx.fillStyle = p.color;
-      ctx.fillRect(-p.size / 2, -p.size / 4, p.size, p.size / 2);
+      ctx.fillStyle = particle.color;
+      ctx.fillRect(-particle.size / 2, -particle.size / 4, particle.size, particle.size / 2);
       ctx.restore();
       ctx.globalAlpha = 1;
       continue;
     }
 
     ctx.beginPath();
-    ctx.arc(p.x, p.y, p.size * (0.35 + t * 0.85), 0, TAU);
-    ctx.globalAlpha = p.type === 'dust' ? t * 0.5 : t;
-    ctx.fillStyle = p.color;
+    ctx.arc(p.x, p.y, particle.size * (0.35 + t * 0.85), 0, TAU);
+    ctx.globalAlpha = particle.type === 'dust' ? t * 0.5 : t;
+    ctx.fillStyle = particle.color;
     ctx.fill();
     ctx.globalAlpha = 1;
   }
   ctx.restore();
 }
 
-function drawFloaters(ctx: CanvasRenderingContext2D, world: GameWorld): void {
+function drawFloaters(ctx: CanvasRenderingContext2D, world: EcsWorld): void {
   ctx.save();
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  for (const f of world.floaters) {
-    const t = clamp(f.life / f.max, 0, 1);
+  for (const entity of world.query('floater')) {
+    const f = world.get(entity, 'transform')!;
+    const floater = world.get(entity, 'floater')!;
+    const t = clamp(floater.life / floater.max, 0, 1);
     const pop = 1 + (1 - t) * 0.18;
     ctx.globalAlpha = Math.min(1, t * 1.6);
-    ctx.font = `900 ${(f.size ?? 15) * pop}px ${FONT}`;
+    ctx.font = `900 ${(floater.size ?? 15) * pop}px ${FONT}`;
     ctx.lineWidth = 3.5;
     ctx.strokeStyle = 'rgba(4, 7, 12, 0.72)';
-    ctx.strokeText(f.text, f.x, f.y);
-    ctx.fillStyle = f.color;
-    ctx.fillText(f.text, f.x, f.y);
+    ctx.strokeText(floater.text, f.x, f.y);
+    ctx.fillStyle = floater.color;
+    ctx.fillText(floater.text, f.x, f.y);
   }
   ctx.restore();
 }
 
+// ---------------------------------------------------------------------- HUD
 // ---------------------------------------------------------------------- HUD
 
 const formatClock = (seconds: number): string => {
@@ -646,7 +661,7 @@ const formatClock = (seconds: number): string => {
 
 function drawHud(
   ctx: CanvasRenderingContext2D,
-  world: GameWorld,
+  world: EcsWorld,
   hud: Hud,
   input: Input,
   time: number,
@@ -775,19 +790,21 @@ function drawCenterHud(ctx: CanvasRenderingContext2D, hud: Hud, time: number): v
 
 function drawBottomBar(
   ctx: CanvasRenderingContext2D,
-  world: GameWorld,
+  world: EcsWorld,
   hud: Hud,
   input: Input,
   time: number,
 ): void {
   const y = 692;
   const compact = hud.compact;
-  const human = world.human;
+  const player = human(world);
+  if (!player) return;
+  const ball = carriedBall(world, player);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
 
   // Rule 20 / 24 / 25: out players wait in the queue for a catch.
-  if (!human.alive && (hud.phase === 'playing' || hud.phase === 'setover')) {
+  if (!player.condition.alive && (hud.phase === 'playing' || hud.phase === 'setover')) {
     const alpha = 0.55 + Math.sin(time * 3.2) * 0.18;
     ctx.font = `900 ${compact ? 15 : 12}px ${FONT}`;
     ctx.fillStyle = `rgba(255, 138, 154, ${alpha})`;
@@ -807,9 +824,9 @@ function drawBottomBar(
   }
 
   let text: string;
-  if (hud.phase === 'playing' && hud.rushActive && !human.ball) {
+  if (hud.phase === 'playing' && hud.rushActive && !ball) {
     text = compact ? 'OPENING RUSH — GRAB A BALL!' : 'OPENING RUSH — SPRINT TO THE CENTRE LINE AND GRAB A BALL';
-  } else if (hud.phase === 'playing' && human.ball && !human.ball.armed) {
+  } else if (hud.phase === 'playing' && ball && !ball.state.armed) {
     text = compact
       ? 'CARRY IT BEHIND THE ATTACK LINE TO ARM IT'
       : 'BALL INACTIVE — CARRY IT BEHIND THE ATTACK LINE TO ARM IT';
@@ -844,6 +861,7 @@ function drawBottomBar(
   ctx.fillText(`SET ${hud.set}`, COURT.right, y);
 }
 
+// ------------------------------------------------------------------ overlays
 // ------------------------------------------------------------------ overlays
 
 interface BannerStyle {
@@ -991,8 +1009,9 @@ function drawAimCursor(ctx: CanvasRenderingContext2D, hud: Hud, input: Input): v
   ctx.restore();
 }
 
-function drawFlash(ctx: CanvasRenderingContext2D, world: GameWorld): void {
-  if (world.flash <= 0.01) return;
-  ctx.fillStyle = `rgba(255, 255, 255, ${Math.min(0.3, world.flash * 0.28)})`;
+function drawFlash(ctx: CanvasRenderingContext2D, world: EcsWorld): void {
+  const flash = world.resource('feedback').flash;
+  if (flash <= 0.01) return;
+  ctx.fillStyle = `rgba(255, 255, 255, ${Math.min(0.3, flash * 0.28)})`;
   ctx.fillRect(0, 0, VIEW_W, VIEW_H);
 }

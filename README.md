@@ -12,9 +12,10 @@ bring a teammate back in, live-ball blocking, and a ten-second advantage clock.
 - Pick your player from the blue lineup or enter a custom name for the sixth slot
 - Norris wears glasses; hit him and he yells **HEADSHOT** as they fly off
 - Mouse + keyboard on desktop, on-screen stick + buttons on phones
-- Canvas rendering, WebAudio sound effects, zero external assets
-- Vite + strict TypeScript, UI styled with CSS Modules
-- Match/round flow modelled with an **XState v5** statechart
+- Canvas 2D rendering for the whole game *and* the interface — no DOM widgets
+- WebAudio sound effects, zero external assets, zero runtime dependencies
+- Vite + strict TypeScript
+- Match/round flow modelled as **ECS state** — a `phase` resource plus a transition table
 
 ---
 
@@ -107,44 +108,72 @@ in the HUD so the state of the set is always readable.
 
 ## Architecture
 
-The behaviour is modelled as an XState chart; the physics simulation knows
-nothing about scores, menus or match flow.
+The game is an ECS driving a single 2D canvas. Global state is a **resource**,
+per-instance state is a **component**, and an ordered **system** schedule
+advances everything one tick at a time. There is no engine, no UI framework and
+no runtime dependency beyond Vite + TypeScript.
+
+Match flow is state, not control flow. A `phase` resource holds the current
+phase, a `match` resource holds the score, and a transition table names every
+legal move between them:
 
 ```
-                 ┌─────────────────┐
-   START         ▼                 │
-  menu ─▶ active.running.countdown ──3.1s──▶ playing
-                          ▲                    │
-                          │      SET_OVER      │ hit / catch / all-out
-                          │                    ▼
-                          └────3s──── setOver ──▶ matchOver
-                active.paused ──RESUME (deep history)──▶ back to where you were
+   menu ──start──▶ countdown ──3.1s──▶ playing
+                      ▲                  │
+                      │    setOver       │ hit / catch / all-out
+                      │                  ▼
+                      └───3s─── setover ──▶ matchover
+   pause freezes the clock; resume returns to the phase it froze
 ```
+
+Entry actions belong to the definition of the state: entering `countdown`
+resets the set, entering `menu` tears it down. A frame is one ordered pass:
+
+| system | job |
+| --- | --- |
+| `ui-input` | hit-test pointer presses against the drawn interface |
+| `match-flow` | drain triggers, poll timers and the world's set result, apply the table |
+| `phase-effects` | screens, whistles and visual flourishes on a phase change |
+| `simulation` | intents, physics, collisions, shot clock, effects |
+| `countdown-audio` | count-in beeps |
+| `hud` | derive the render view model from resources and queries |
+| `render` | canvas drawing |
+| `settings` | persist what the UI changed |
+| `input-frame` | clear one-shot input edges |
+
+Everything you can see — court, HUD, menus, buttons, the touch stick — is drawn
+with the Canvas 2D API in the same 1280×720 logical space as the court. There is
+no DOM UI: a button is a rectangle plus an id, the menu layout is shared by the
+renderer and the input system, and a pointer press is hit-tested against the
+rectangles that were just drawn.
 
 ```
 src/
-├── main.ts                     # boot, rAF loop, phase-change effects
-├── machine/gameMachine.ts      # XState chart: menu / countdown / playing / setOver / matchOver / paused
+├── main.ts                   # boot, resources, system schedule, rAF loop
+├── ecs/core.ts               # resources, entities, components, ordered schedule
 ├── game/
-│   ├── world.ts                # simulation + the VDL rule engine (hits, catches, shot clock, queues)
-│   ├── entities.ts             # Player and Ball state machines-in-miniature
-│   ├── ai.ts                   # teammates + opponents (rushing, arming, kiting, dodging, catching)
-│   ├── renderer.ts             # canvas rendering, HUD, banners
-│   ├── input.ts                # keyboard, mouse and touch (virtual stick + buttons)
-│   ├── audio.ts                # WebAudio synth (no audio files)
-│   ├── constants.ts            # court dimensions, physics, difficulty, rules constants
-│   ├── types.ts                # shared types, including the HUD view model
-│   └── math.ts                 # small helpers
-├── ui/
-│   ├── shell.ts                # menu/pause/results/rules screens + top controls
-│   └── shell.module.css        # CSS Modules for the UI shell
-└── styles/global.css           # page, canvas and touch layout
+│   ├── components.ts         # every component and resource, declared once
+│   ├── spawn.ts              # create the match, reset a set, re-enter players
+│   ├── match.ts              # match state + transition table + flow system
+│   ├── sim.ts                # intents, movement, ball physics and the rule engine
+│   ├── ai.ts                 # teammates + opponents (rushing, arming, kiting, dodging)
+│   ├── queries.ts            # typed views over player and ball entities
+│   ├── effects.ts            # particles, floaters, glasses, camera feedback
+│   ├── input.ts              # keyboard plus raw pointer samples
+│   ├── ui.ts                 # canvas menus, touch stick, hit-testing
+│   ├── systems.ts            # the frame schedule
+│   ├── renderer.ts           # canvas rendering
+│   ├── audio.ts              # WebAudio synth (no audio files)
+│   ├── constants.ts          # court dimensions, physics, difficulty, rules constants
+│   ├── types.ts              # shared types, including the HUD view model
+│   └── math.ts               # small helpers
+└── styles/global.css         # page chrome only — the arena is entirely canvas
 ```
 
-`GameWorld` reports `SET_OVER` events; the chart owns the score and decides what
-happens next. `main.ts` subscribes to phase changes and runs the side effects
-(reset the world, show a screen, play a whistle), which keeps the chart
-declarative and the simulation free of UI concerns.
+The simulation never calls back into flow. A resolved set is published as
+`set.resolved` + `set.winner`, and the flow system claims it on the next tick,
+which keeps the rules free of phases and the UI and leaves the transition table
+as the one readable description of match flow.
 
 ---
 

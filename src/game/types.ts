@@ -1,7 +1,7 @@
 export type TeamId = 'blue' | 'red';
 export type DifficultyId = 'rookie' | 'pro' | 'allstar';
 
-/** High-level phase mirrored from the XState chart for rendering. */
+/** Top-level phase, owned by the `phase` ECS resource. */
 export type Phase = 'menu' | 'countdown' | 'playing' | 'setover' | 'matchover' | 'paused';
 
 export interface Score {

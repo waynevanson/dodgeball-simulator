@@ -7,10 +7,6 @@ settings:
 importers:
 
   .:
-    dependencies:
-      xstate:
-        specifier: ^5.19.2
-        version: 5.33.4
     devDependencies:
       typescript:
         specifier: ^5.7.2
@@ -416,9 +412,6 @@ packages:
       yaml:
         optional: true
 
-  xstate@5.33.4:
-    resolution: {integrity: sha512-eGNMu3BNqU0Z85P+ouYG5OCZqIABU+QsW6vUieFt9p9gOGs3C+BL10Exg7XdRPSXPQKlP6XoYpYf93r9VmW8mQ==}
-
 snapshots:
 
   '@esbuild/aix-ppc64@0.25.12':
@@ -678,5 +671,3 @@ snapshots:
       tinyglobby: 0.2.17
     optionalDependencies:
       fsevents: 2.3.3
-
-  xstate@5.33.4: {}

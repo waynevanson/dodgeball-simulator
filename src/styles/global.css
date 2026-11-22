@@ -1,11 +1,11 @@
+/*
+ * Page chrome only. Everything inside the arena — menus, HUD, touch controls —
+ * is drawn on the canvas by src/game/ui.ts, so there are no widgets or CSS
+ * classes for game state.
+ */
+
 :root {
   color-scheme: dark;
-  --ink: #e8eefc;
-  --ink-dim: #9aa8c2;
-  --ink-faint: #64748b;
-  --font: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
-    sans-serif;
-  --mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
 }
 
 * {
@@ -29,23 +29,20 @@ body {
     radial-gradient(1200px 700px at 50% -10%, #16203a 0%, transparent 62%),
     radial-gradient(900px 600px at 90% 110%, #2a1220 0%, transparent 60%),
     #05070c;
-  color: var(--ink);
-  font-family: var(--font);
+  color: #e8eefc;
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
   -webkit-touch-callout: none;
   user-select: none;
   -webkit-user-select: none;
-  touch-action: manipulation;
+  touch-action: none;
 }
 
 #app {
   position: relative;
   width: min(100vw, calc(100vh * 16 / 9));
   height: min(100vh, calc(100vw * 9 / 16));
-  aspect-ratio: 16 / 9;
   overflow: hidden;
-  touch-action: none;
   box-shadow:
     0 40px 120px -30px rgba(0, 0, 0, 0.9),
     0 0 0 1px rgba(148, 163, 184, 0.08);
@@ -72,47 +69,29 @@ body {
   touch-action: none;
 }
 
-#ui {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 10;
-}
+/* Touch devices use the whole viewport; the 16:9 arena is centred inside it. */
+@media (pointer: coarse) {
+  body {
+    background: #04060b;
+  }
 
-/*
- * Touch layout: the app fills the whole viewport (so the browser's safe areas
- * and letterbox bars are ours to use) and the 16:9 arena is centred inside it.
- */
-body.touch-mode {
-  background: #04060b;
-}
+  #app {
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    display: grid;
+    place-items: center;
+    border-radius: 0;
+    box-shadow: none;
+  }
 
-body.touch-mode #app {
-  width: 100vw;
-  height: 100vh;
-  height: 100dvh;
-  aspect-ratio: auto;
-  display: grid;
-  place-items: center;
-  border-radius: 0;
-  box-shadow: none;
-}
-
-body.touch-mode #game {
-  width: min(100vw, calc(100vh * 16 / 9));
-  height: min(100vh, calc(100vw * 9 / 16));
-  width: min(100vw, calc(100dvh * 16 / 9));
-  height: min(100dvh, calc(100vw * 9 / 16));
-  border-radius: 6px;
-}
-
-#touch {
-  display: none;
-}
-
-/* Controls only appear while the game is actually live. */
-body.touch-mode.playing #touch {
-  display: block;
+  #game {
+    width: min(100vw, calc(100vh * 16 / 9));
+    height: min(100vh, calc(100vw * 9 / 16));
+    width: min(100vw, calc(100dvh * 16 / 9));
+    height: min(100dvh, calc(100vw * 9 / 16));
+    border-radius: 6px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
