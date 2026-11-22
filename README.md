@@ -149,26 +149,29 @@ rectangles that were just drawn.
 
 ```
 src/
-├── main.ts                   # boot, resources, system schedule, rAF loop
-├── ecs/core.ts               # resources, entities, components, ordered schedule
+├── main.ts                     # boot, resources, system schedule, rAF loop
+├── ecs/core.ts                 # resources, entities, components, ordered schedule
 ├── game/
-│   ├── components.ts         # every component and resource, declared once
-│   ├── spawn.ts              # create the match, reset a set, re-enter players
-│   ├── match.ts              # match state + transition table + flow system
-│   ├── sim.ts                # intents, movement, ball physics and the rule engine
-│   ├── ai.ts                 # teammates + opponents (rushing, arming, kiting, dodging)
-│   ├── queries.ts            # typed views over player and ball entities
-│   ├── effects.ts            # particles, floaters, glasses, camera feedback
-│   ├── input.ts              # keyboard plus raw pointer samples
-│   ├── ui.ts                 # canvas menus, touch stick, hit-testing
-│   ├── systems.ts            # the frame schedule
-│   ├── renderer.ts           # canvas rendering
-│   ├── audio.ts              # WebAudio synth (no audio files)
-│   ├── constants.ts          # court dimensions, physics, difficulty, rules constants
-│   ├── types.ts              # shared types, including the HUD view model
-│   └── math.ts               # small helpers
-└── styles/global.css         # page chrome only — the arena is entirely canvas
+│   ├── components.ts           # barrel: shared, player, ball, effects, world, registry
+│   ├── constants.ts            # barrel: view, pitch, rules, physics, teams, roster, difficulty
+│   ├── spawn.ts                # barrel: match, formation, sets
+│   ├── match.ts                # barrel: state, table, flow
+│   ├── sim.ts                  # barrel: intents, player, ball, throwing, contacts, out, rules, loop
+│   ├── ai.ts                   # barrel: threats, targets, intent
+│   ├── effects.ts              # barrel: particles, floaters, glasses, feedback, update
+│   ├── systems.ts              # barrel: simulation, phase-effects, countdown-audio, hud, render, input-frame
+│   ├── renderer.ts             # barrel: scene, court, queues, balls, players, fx, hud, banners, cursor
+│   ├── ui.ts                   # barrel: state, layout, hit, shapes, actions, flow, menu, dialogs, rules, controls
+│   ├── audio.ts                # barrel: synth, voices, instance
+│   ├── input.ts                # keyboard and raw pointer samples
+│   ├── queries.ts              # typed views over player and ball entities
+│   ├── types.ts                # shared types, including the HUD view model
+│   └── math.ts                 # small helpers
+└── styles/global.css           # page chrome only — the arena is entirely canvas
 ```
+
+Modules publish an `export *` barrel, and every file stays under about 200
+lines: one concern per module, one concern per file.
 
 The simulation never calls back into flow. A resolved set is published as
 `set.resolved` + `set.winner`, and the flow system claims it on the next tick,

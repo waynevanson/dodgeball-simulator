@@ -1,0 +1,18 @@
+export const PHYS = {
+  speed: 270,
+  dashSpeed: 790,
+  dashTime: 0.16,
+  dashCd: 1.05,
+  chargeTime: 0.6,
+  throwMin: 540,
+  throwMax: 1330,
+  throwCd: 0.26,
+  catchWindow: 0.32,
+  catchCd: 0.95,
+  ballDrag: 1.0,
+  ballDragFree: 2.4,
+  ballLiveSpeed: 320,
+  wallDamp: 0.3,
+  blockRetain: 0.8,
+  blockMinSpeed: 380,
+} as const;
