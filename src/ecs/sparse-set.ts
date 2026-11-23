@@ -16,7 +16,7 @@ export class SparseSet {
   }
 
   get sparseBytes(): number {
-    return this.#sparse.allocatedBytes;
+    return this.#sparse.bytes;
   }
 
   entities(): Int32Array {
