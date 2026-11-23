@@ -40,7 +40,7 @@ export class SparseSet {
     const existing = this.indexOf(entity);
     if (existing >= 0) return existing;
 
-    if (this.#count === this.#dense.length) this.#growDense();
+    if (this.#count === this.#dense.length) this.#grow();
 
     const index = this.#count++;
     this.#dense[index] = entity;
@@ -67,7 +67,7 @@ export class SparseSet {
     this.#count = 0;
   }
 
-  #growDense(): void {
+  #grow(): void {
     const next = new Int32Array(Math.max(8, this.#dense.length * 2));
     next.set(this.#dense);
     this.#dense = next;
