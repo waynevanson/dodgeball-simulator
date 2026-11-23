@@ -29,11 +29,25 @@ jobs:
           node-version: 22
           cache: pnpm
 
+      - uses: dtolnay/rust-toolchain@1.95.0
+        with:
+          targets: wasm32-unknown-unknown
+
+      - uses: Swatinem/rust-cache@v2
+
+      # The crate pins this version; see Cargo.toml.
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-bindgen-cli@0.2.121
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Typecheck + build
-        run: pnpm build
+      - name: Typecheck, test and build
+        run: |
+          pnpm typecheck
+          pnpm rust:test
+          pnpm build
 
       - uses: actions/configure-pages@v5
         with:
@@ -41,7 +55,7 @@ jobs:
 
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: dist
+          path: apps/web/dist
 
   deploy:
     needs: build

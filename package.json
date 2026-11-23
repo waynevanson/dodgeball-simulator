@@ -1,29 +1,20 @@
 {
   "name": "dodgeball-simulator",
   "private": true,
-  "version": "1.0.0",
   "type": "module",
-  "description": "A 6v6 browser dodgeball game: a small ECS rendered with the Canvas 2D API.",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc --noEmit && vite build",
-    "preview": "vite preview",
-    "typecheck": "tsc --noEmit"
-  },
-  "dependencies": {
-    "valibot": "^1.5.0"
-  },
-  "devDependencies": {
-    "typescript": "^5.7.2",
-    "vite": "^6.0.5"
+    "dev": "pnpm --filter @dodgeball/web dev",
+    "build": "pnpm --filter @dodgeball/web build",
+    "preview": "pnpm --filter @dodgeball/web preview",
+    "typecheck": "pnpm --filter @dodgeball/web typecheck",
+    "rust:check": "cargo check --manifest-path Cargo.toml",
+    "rust:check:wasm": "cargo check --manifest-path Cargo.toml --target wasm32-unknown-unknown",
+    "rust:test": "cargo test --manifest-path Cargo.toml",
+    "rust:fmt": "cargo fmt --manifest-path Cargo.toml --all",
+    "check": "pnpm typecheck && pnpm rust:test && pnpm rust:check:wasm"
   },
   "packageManager": "pnpm@10.34.5",
   "engines": {
     "node": ">=20"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "esbuild"
-    ]
   }
 }

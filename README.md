@@ -12,10 +12,11 @@ bring a teammate back in, live-ball blocking, and a ten-second advantage clock.
 - Pick your player from the blue lineup or enter a custom name for the sixth slot
 - Norris wears glasses; hit him and he yells **HEADSHOT** as they fly off
 - Mouse + keyboard on desktop, on-screen stick + buttons on phones
+- **Rust ECS simulation** compiled to WebAssembly, Canvas 2D presentation in TypeScript
 - Canvas 2D rendering for the whole game *and* the interface — no DOM widgets
-- WebAudio sound effects, zero external assets, zero runtime dependencies
-- Vite + strict TypeScript
+- WebAudio sound effects, zero external assets, zero runtime JavaScript dependencies
 - Match/round flow modelled as **ECS state** — a `phase` resource plus a transition table
+- Deterministic, seeded simulation: `cargo test` drives full matches headlessly
 
 ---
 
@@ -108,14 +109,57 @@ in the HUD so the state of the set is always readable.
 
 ## Architecture
 
-The game is an ECS driving a single 2D canvas. Global state is a **resource**,
-per-instance state is a **component**, and systems run in two ordered schedules:
-**startup** once before the first frame, and **update** every tick. There is no
-engine, no UI framework and no runtime dependency beyond Vite + TypeScript.
+Two packages with one boundary between them:
+
+| Package | Owns |
+| --- | --- |
+| `crates/sim` (Rust → wasm) | ECS, rules, physics, AI, match flow, effects, HUD view model |
+| `apps/web` (TypeScript) | Canvas 2D rendering, canvas UI, input, WebAudio, settings |
+
+The Rust side never touches a canvas or WebAudio. Each frame the browser calls
+`Game.tick(dt, input)`, receives a **snapshot** (plain objects for players,
+balls, particles, floaters, glasses and the HUD), and plays the **sound events**
+the simulation emitted.
+
+```
+     input                      snapshot                    Canvas 2D
+  ┌──────────┐   tick(dt)   ┌──────────────┐   render   ┌────────────┐
+  │ apps/web │ ───────────▶ │  crates/sim  │ ─────────▶ │ apps/web   │
+  │  Input   │              │  ECS + rules │            │ renderer   │
+  └──────────┘ ◀─────────── └──────────────┘            └────────────┘
+                 SfxEvent[]
+```
+
+Only four things cross the boundary:
+
+1. `Game::new(seed, difficulty, humanSlot, customName)`
+2. `Game::tick(dt, inputFrame) -> Frame`
+3. commands: `startMatch`, `pause`, `resume`, `toMenu`, `setDifficulty`, `setLineup`
+4. `Game::takeEvents() -> SfxEvent[]`
+
+### The Rust ECS
+
+`crates/sim/src/ecs.rs` is the whole engine: generation-tagged `Entity` handles
+over a recycled index space, and a `SparseSet<T>` per component type (a sparse
+`index -> dense slot` table plus a dense value column). Queries walk the dense
+array, so iteration is sequential and entity order is spawn order until
+something is removed.
+
+Players and balls each have a fixed component set, so they are stored as one
+owned value (`Player`, `Ball`) rather than ten separate columns. That keeps the
+systems readable and lets Rust own the fields, while the ECS still stores and
+queries them as entities. Particles, floaters and glasses are separate
+component types.
+
+The simulation is deterministic for a given seed. The RNG is a seeded
+SplitMix64 (`rng.rs`), with no `getrandom` and no platform entropy, so native
+tests and browser matches can be replayed.
+
+### Match flow
 
 Match flow is state, not control flow. A `phase` resource holds the current
-phase, a `match` resource holds the score, and a transition table names every
-legal move between them:
+phase, a `match` resource holds the score, and `game/flow.rs` names every legal
+transition:
 
 ```
    menu ──start──▶ countdown ──3.1s──▶ playing
@@ -127,85 +171,124 @@ legal move between them:
 ```
 
 Entry actions belong to the definition of the state: entering `countdown`
-resets the set, entering `menu` tears it down.
+resets the set, entering `menu` tears it down. The simulation never calls back
+into flow; a resolved set is published as `set.resolved` + `set.winner`, and the
+flow step claims it on the next tick.
 
-`main` builds the canvas and input, loads saved settings, and starts the loop.
-Two ordered schedules assemble and run the world:
+### The frame
 
-**Startup** runs once, before the first frame:
+`game::tick` runs the old update schedule in Rust, in order:
 
-| system | job |
+| Step | Job |
 | --- | --- |
-| `game-startup` | spawn the match, its resources, the opening phase/flow and saved settings |
-| `presentation-startup` | attach the canvas, input and UI state |
+| `flow_step` | drain triggers, poll timers and the set result, apply the table |
+| `simulate` | intents, AI, fixed 120 Hz substeps, physics, collisions |
+| `update_rules` | arming, opening rush, shot clock, forfeits |
+| `update_effects` | age particles, floaters and glasses |
+| `World::frame` | build the presentation snapshot |
 
-**Update** runs every tick, in order:
+Audio calls became `SfxEvent` values: `throw`, `hit`, `headshot`, `catch`,
+`block`, `pickup`, `bounce`, `dash`, `beep`, `whistle`, `roundWin`, `roundLose`,
+`matchWin`, `matchLose`, `ui`. The TypeScript bridge maps them onto `Sfx`.
+Phase changes, shake, slow motion and confetti stay in the simulation; the
+canvas just draws the result.
 
-| system | job |
-| --- | --- |
-| `ui-input` | hit-test pointer presses against the drawn interface |
-| `match-flow` | drain triggers, poll timers and the world's set result, apply the table |
-| `phase-effects` | screens, whistles and visual flourishes on a phase change |
-| `simulation` | intents, physics, collisions, shot clock, effects |
-| `countdown-audio` | count-in beeps |
-| `hud` | derive the render view model from resources and queries |
-| `render` | canvas drawing |
-| `settings` | persist what the UI changed |
-| `input-frame` | clear one-shot input edges |
-
-Everything you can see — court, HUD, menus, buttons, the touch stick — is drawn
-with the Canvas 2D API in the same 1280×720 logical space as the court. There is
-no DOM UI: a button is a rectangle plus an id, the menu layout is shared by the
-renderer and the input system, and a pointer press is hit-tested against the
-rectangles that were just drawn.
+### Repository layout
 
 ```
-src/
-├── main.ts                     # canvas, input, saved settings, rAF wiring
-├── ecs/core.ts                 # entities, components, resources, startup + update schedules
-├── ecs/component-store.ts      # one component type: sparse set + dense value column
-├── ecs/sparse-set.ts           # dense entity indices, sparse index -> dense slot
-├── ecs/entity-allocator.ts     # recycled indices with generation-tagged handles
-├── game/
-│   ├── components.ts           # barrel: shared, player, ball, effects, world, registry
-│   ├── constants.ts            # barrel: view, pitch, rules, physics, teams, roster, difficulty
-│   ├── spawn.ts                # barrel: match, formation, sets
-│   ├── match.ts                # barrel: state, table, flow
-│   ├── sim.ts                  # barrel: intents, player, ball, throwing, contacts, out, rules, loop
-│   ├── ai.ts                   # barrel: threats, targets, intent
-│   ├── effects.ts              # barrel: particles, floaters, glasses, feedback, update
-│   ├── systems.ts              # barrel: startup, simulation, phase-effects, countdown-audio, hud, render, input-frame
-│   ├── renderer.ts             # barrel: scene, court, queues, balls, players, fx, hud, banners, cursor
-│   ├── ui.ts                   # barrel: state, layout, hit, shapes, actions, flow, menu, dialogs, rules, controls
-│   ├── audio.ts                # barrel: synth, voices, instance
-│   ├── input.ts                # keyboard and raw pointer samples
-│   ├── queries.ts              # typed views over player and ball entities
-│   ├── types.ts                # shared types, including the HUD view model
-│   └── math.ts                 # small helpers
-└── styles/global.css           # page chrome only — the arena is entirely canvas
+Cargo.toml                     # Cargo workspace (members = crates/*)
+rust-toolchain.toml            # stable + wasm32-unknown-unknown
+crates/
+└── sim/                       # Rust simulation core
+    ├── Cargo.toml
+    ├── src/
+    │   ├── lib.rs
+    │   ├── wasm.rs            # the only wasm-bindgen surface
+    │   ├── world.rs           # World: component sets + resources
+    │   ├── ecs.rs             # entities, sparse sets, allocator
+    │   ├── components.rs      # Player, Ball, Particle, Floater, Glasses
+    │   ├── resources.rs       # Clock, SetState, Shot, Queues, InputFrame …
+    │   ├── constants.rs       # court, physics, rules, roster, difficulty
+    │   ├── types.rs           # Team, Phase, Trigger, SfxEvent, Score
+    │   ├── math.rs, rng.rs
+    │   ├── snapshot.rs        # serde structs for the browser frame
+    │   └── game/
+    │       ├── mod.rs         # tick order
+    │       ├── flow.rs        # phase transition table
+    │       ├── ai.rs          # target choice, threats, dodging
+    │       ├── effects.rs     # particles, floaters, glasses, confetti
+    │       ├── spawn.rs       # match/set/formation setup
+    │       └── sim/           # player, ball, throwing, contacts, out, rules
+    └── tests/                 # headless match + flow tests
+apps/
+└── web/                       # Vite app
+    ├── index.html
+    ├── vite.config.ts         # unplugin-cargo + vite-plugin-wasm
+    ├── tsconfig.json          # allowArbitraryExtensions for the .rs import
+    └── src/
+        ├── main.ts            # settings, input, rAF loop, shortcuts
+        ├── styles/global.css  # page chrome only
+        └── game/
+            ├── bridge.ts      # Game + InputFrame + SfxEvent mapping
+            ├── frame.ts       # snapshot types + Hud
+            ├── queries.ts     # players/balls/human/carriedBall over a Frame
+            ├── input.ts       # keyboard, pointer, touch, InputFrame
+            ├── types.ts, math.ts
+            ├── constants/     # presentation copies of court/rules/roster
+            ├── renderer/      # court, players, balls, fx, HUD, banners
+            ├── ui/            # canvas menus, hit-testing, touch controls
+            ├── audio/         # WebAudio synth + speech
+            └── systems/render.ts
 ```
 
-Modules publish an `export *` barrel, and every file stays under about 200
-lines: one concern per module, one concern per file.
-
-The simulation never calls back into flow. A resolved set is published as
-`set.resolved` + `set.winner`, and the flow system claims it on the next tick,
-which keeps the rules free of phases and the UI and leaves the transition table
-as the one readable description of match flow.
+`crates/sim/src/lib.rs.d.ts` is generated by `wasm-bindgen` through
+`unplugin-cargo`. It is committed so `pnpm typecheck` works from a fresh clone;
+it is refreshed every time the crate is built.
 
 ---
 
 ## Development
 
-Requires **Node 20+** and **pnpm 10** (pinned via `packageManager`).
+Requires:
+
+- **Node 20+** and **pnpm 10** (pinned via `packageManager`)
+- **Rust 1.95.0** (pinned in `rust-toolchain.toml`) with the `wasm32-unknown-unknown` target
+- **`wasm-bindgen-cli` 0.2.121**, matching the pinned `wasm-bindgen` crate
+
+```bash
+# Option A: Nix (fenix pins stable Rust + wasm32 target + wasm-bindgen-cli)
+nix develop
+
+# Option B: rustup
+rustup target add wasm32-unknown-unknown
+cargo install -f wasm-bindgen-cli --version 0.2.121
+```
+
+Then, in either shell:
 
 ```bash
 pnpm install
-pnpm dev        # http://localhost:5173
+pnpm dev        # Vite + cargo build on demand
 pnpm typecheck  # tsc --noEmit
-pnpm build      # typecheck + Vite production build into dist/
+pnpm rust:test  # headless ECS/rules/flow tests
+pnpm build      # cargo wasm (release) + typecheck + Vite build
 pnpm preview    # serve the production build
+pnpm check      # typecheck + rust tests + wasm check
 ```
+
+**unplugin-cargo.** The Vite plugin compiles `crates/sim/src/lib.rs` to wasm,
+runs `wasm-bindgen`, generates the glue and watches the crate's `.rs` files.
+It is installed straight from GitHub at the `0.2.0` tag, which ships the built
+`dist` and the Cargo-workspace fix (dep-info paths resolved against
+`cargo metadata`'s `workspace_root`, and only existing files watched):
+
+```json
+"@waynevanson/unplugin-cargo": "github:waynevanson/unplugin-cargo#path:/packages/unplugin-cargo&0.2.0"
+```
+
+`#path:` is a pnpm extension for monorepos, so use pnpm for a direct GitHub
+install. When the package is published to npm, this can become a normal
+version range.
 
 Vite uses a relative `base`, so the build works at any path (including
 `https://<user>.github.io/dodgeball-simulator/`).
@@ -214,8 +297,10 @@ Vite uses a relative `base`, so the build works at any path (including
 
 ## Deployment
 
-`.github/workflows/deploy.yml` installs with pnpm, runs the typecheck/build and
-publishes `dist/` to GitHub Pages on every push to `main`.
+`.github/workflows/deploy.yml` installs Rust with the wasm target and
+`wasm-bindgen-cli`, installs with pnpm, runs the typecheck, the Rust tests and
+the Vite build, then publishes `apps/web/dist` to GitHub Pages on every push to
+`main`.
 
 One-time setup: **Settings → Pages → Build and deployment → Source: GitHub
 Actions**. No branch or folder needs to be configured.

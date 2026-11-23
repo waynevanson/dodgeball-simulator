@@ -1,0 +1,19 @@
+{
+  "name": "@dodgeball/web",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Canvas presentation, input and audio for the dodgeball simulator",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@waynevanson/unplugin-cargo": "github:waynevanson/unplugin-cargo#path:/packages/unplugin-cargo&0.2.0",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.5",
+    "vite-plugin-wasm": "^3.5.0"
+  }
+}

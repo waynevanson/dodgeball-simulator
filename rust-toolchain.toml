@@ -1,0 +1,7 @@
+[toolchain]
+# Pin an exact release: fenix fetches this channel's manifest and verifies it
+# against the hash in flake.nix, which is only reproducible for fixed versions.
+channel = "1.95.0"
+profile = "minimal"
+components = ["rustfmt", "clippy", "rust-analyzer", "rust-src"]
+targets = ["wasm32-unknown-unknown"]
