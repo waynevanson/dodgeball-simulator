@@ -33,7 +33,7 @@ export class Synth {
   protected noise: AudioBuffer | null = null;
   muted = false;
 
-  private init(): void {
+  #init(): void {
     if (this.ctx) return;
     const Ctor: AudioContextCtor | undefined =
       window.AudioContext ??
@@ -52,7 +52,7 @@ export class Synth {
   }
 
   resume(): void {
-    this.init();
+    this.#init();
     if (this.ctx && this.ctx.state === 'suspended') void this.ctx.resume();
   }
 
@@ -65,7 +65,7 @@ export class Synth {
     }
   }
 
-  private get ready(): boolean {
+  get #ready(): boolean {
     return !!this.ctx && !!this.master && !!this.noise && !this.muted;
   }
 
@@ -78,7 +78,7 @@ export class Synth {
     delay = 0,
     attack = 0.006,
   }: ToneOptions): void {
-    if (!this.ready) return;
+    if (!this.#ready) return;
     const ctx = this.ctx!;
     const master = this.master!;
     const t0 = ctx.currentTime + delay;
@@ -104,7 +104,7 @@ export class Synth {
     type = 'bandpass',
     sweep = null,
   }: HissOptions): void {
-    if (!this.ready) return;
+    if (!this.#ready) return;
     const ctx = this.ctx!;
     const master = this.master!;
     const noise = this.noise!;

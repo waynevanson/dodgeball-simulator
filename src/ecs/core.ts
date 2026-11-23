@@ -18,27 +18,27 @@ export interface System<C extends object, R extends object> {
 }
 
 export class EcsWorld<C extends object, R extends object> {
-  private readonly entities = new Set<Entity>();
-  private readonly stores = new Map<ComponentKey<C>, Map<Entity, unknown>>();
-  private readonly resources = new Map<ResourceKey<R>, unknown>();
-  private readonly startupSystems: Array<System<C, R>> = [];
-  private readonly updateSystems: Array<System<C, R>> = [];
-  private started = false;
-  private nextEntity: Entity = 1;
-  private ticks = 0;
-  private time = 0;
+  readonly #entities = new Set<Entity>();
+  readonly #stores = new Map<ComponentKey<C>, Map<Entity, unknown>>();
+  readonly #resources = new Map<ResourceKey<R>, unknown>();
+  readonly #startupSystems: Array<System<C, R>> = [];
+  readonly #updateSystems: Array<System<C, R>> = [];
+  #started = false;
+  #nextEntity: Entity = 1;
+  #ticks = 0;
+  #time = 0;
 
   setResource<K extends ResourceKey<R>>(key: K, value: R[K]): this {
-    this.resources.set(key, value);
+    this.#resources.set(key, value);
     return this;
   }
 
   hasResource<K extends ResourceKey<R>>(key: K): boolean {
-    return this.resources.has(key);
+    return this.#resources.has(key);
   }
 
   resource<K extends ResourceKey<R>>(key: K): R[K] {
-    const value = this.resources.get(key);
+    const value = this.#resources.get(key);
     if (value === undefined) {
       throw new Error(`EcsWorld: missing resource "${key}"`);
     }
@@ -46,53 +46,53 @@ export class EcsWorld<C extends object, R extends object> {
   }
 
   spawn(): Entity {
-    const entity = this.nextEntity++;
-    this.entities.add(entity);
+    const entity = this.#nextEntity++;
+    this.#entities.add(entity);
     return entity;
   }
 
   despawn(entity: Entity): void {
-    this.entities.delete(entity);
-    for (const store of this.stores.values()) store.delete(entity);
+    this.#entities.delete(entity);
+    for (const store of this.#stores.values()) store.delete(entity);
   }
 
   isAlive(entity: Entity): boolean {
-    return this.entities.has(entity);
+    return this.#entities.has(entity);
   }
 
   get entityCount(): number {
-    return this.entities.size;
+    return this.#entities.size;
   }
 
   add<K extends ComponentKey<C>>(entity: Entity, key: K, value: C[K]): void {
-    this.store(key).set(entity, value);
+    this.#store(key).set(entity, value);
   }
 
   remove<K extends ComponentKey<C>>(entity: Entity, key: K): void {
-    this.store(key).delete(entity);
+    this.#store(key).delete(entity);
   }
 
   has<K extends ComponentKey<C>>(entity: Entity, key: K): boolean {
-    return this.store(key).has(entity);
+    return this.#store(key).has(entity);
   }
 
   get<K extends ComponentKey<C>>(entity: Entity, key: K): C[K] | undefined {
-    return this.store(key).get(entity) as C[K] | undefined;
+    return this.#store(key).get(entity) as C[K] | undefined;
   }
 
   query<K extends ComponentKey<C>>(...keys: K[]): Entity[] {
-    if (keys.length === 0) return [...this.entities];
+    if (keys.length === 0) return [...this.#entities];
 
     let smallest: Map<Entity, unknown> | null = null;
     for (const key of keys) {
-      const store = this.store(key);
+      const store = this.#store(key);
       if (smallest === null || store.size < smallest.size) smallest = store;
     }
     if (smallest === null) return [];
 
     const found: Entity[] = [];
     for (const entity of smallest.keys()) {
-      if (this.entities.has(entity) && keys.every((key) => this.store(key).has(entity))) {
+      if (this.#entities.has(entity) && keys.every((key) => this.#store(key).has(entity))) {
         found.push(entity);
       }
     }
@@ -101,55 +101,55 @@ export class EcsWorld<C extends object, R extends object> {
 
   /** Register a per-frame system. Update systems run in registration order. */
   addSystem(system: System<C, R>): this {
-    this.updateSystems.push(system);
+    this.#updateSystems.push(system);
     return this;
   }
 
   /** Register a one-shot system. Startup systems run once, before the first update. */
   addStartup(system: System<C, R>): this {
-    this.startupSystems.push(system);
+    this.#startupSystems.push(system);
     return this;
   }
 
   get systemNames(): readonly string[] {
-    return this.updateSystems.map((system) => system.name);
+    return this.#updateSystems.map((system) => system.name);
   }
 
   get startupSystemNames(): readonly string[] {
-    return this.startupSystems.map((system) => system.name);
+    return this.#startupSystems.map((system) => system.name);
   }
 
   /** Run the startup schedule once. `tick` calls this before the first update. */
   start(): void {
-    if (this.started) return;
-    this.started = true;
+    if (this.#started) return;
+    this.#started = true;
     const context: TickContext<C, R> = {
       world: this,
       dt: 0,
-      now: this.time,
-      tick: this.ticks,
+      now: this.#time,
+      tick: this.#ticks,
     };
-    for (const system of this.startupSystems) system.run(context);
+    for (const system of this.#startupSystems) system.run(context);
   }
 
   tick(dt: number): void {
     this.start();
-    this.ticks += 1;
-    this.time += dt;
+    this.#ticks += 1;
+    this.#time += dt;
     const context: TickContext<C, R> = {
       world: this,
       dt,
-      now: this.time,
-      tick: this.ticks,
+      now: this.#time,
+      tick: this.#ticks,
     };
-    for (const system of this.updateSystems) system.run(context);
+    for (const system of this.#updateSystems) system.run(context);
   }
 
-  private store<K extends ComponentKey<C>>(key: K): Map<Entity, unknown> {
-    let store = this.stores.get(key);
+  #store<K extends ComponentKey<C>>(key: K): Map<Entity, unknown> {
+    let store = this.#stores.get(key);
     if (!store) {
       store = new Map<Entity, unknown>();
-      this.stores.set(key, store);
+      this.#stores.set(key, store);
     }
     return store;
   }

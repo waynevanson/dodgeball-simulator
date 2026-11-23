@@ -32,10 +32,10 @@ export interface PointerSample {
  * rather than a DOM callback so canvas hit-testing can decide what it meant.
  */
 export class Input {
-  private readonly canvas: HTMLCanvasElement;
-  private readonly keys = new Set<string>();
-  private readonly pressedKeys = new Set<string>();
-  private readonly touchActions = new Set<TouchAction>();
+  readonly #canvas: HTMLCanvasElement;
+  readonly #keys = new Set<string>();
+  readonly #pressedKeys = new Set<string>();
+  readonly #touchActions = new Set<TouchAction>();
 
   readonly mouse: MouseState = {
     x: VIEW_W / 2,
@@ -58,45 +58,45 @@ export class Input {
   readonly typed: string[] = [];
 
   constructor(canvas: HTMLCanvasElement) {
-    this.canvas = canvas;
+    this.#canvas = canvas;
     this.usingTouch =
       typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches;
 
-    this.bindKeyboard();
-    this.bindPointer();
+    this.#bindKeyboard();
+    this.#bindPointer();
   }
 
   isDown(...codes: string[]): boolean {
-    return codes.some((code) => this.keys.has(code));
+    return codes.some((code) => this.#keys.has(code));
   }
 
   pressed(code: string): boolean {
-    return this.pressedKeys.has(code);
+    return this.#pressedKeys.has(code);
   }
 
   takeTouchAction(action: TouchAction): boolean {
-    if (!this.touchActions.has(action)) return false;
-    this.touchActions.delete(action);
+    if (!this.#touchActions.has(action)) return false;
+    this.#touchActions.delete(action);
     return true;
   }
 
   addTouchAction(action: TouchAction): void {
-    this.touchActions.add(action);
+    this.#touchActions.add(action);
   }
 
   /** Clear one-shot state; called at the end of every rendered frame. */
   endFrame(): void {
-    this.pressedKeys.clear();
+    this.#pressedKeys.clear();
     this.mouse.rightPressed = false;
-    this.touchActions.clear();
+    this.#touchActions.clear();
     this.pointerDowns.length = 0;
     this.pointerUps.length = 0;
     this.pointerMoves.length = 0;
     this.typed.length = 0;
   }
 
-  private toCanvas(e: PointerEvent): { x: number; y: number } {
-    const rect = this.canvas.getBoundingClientRect();
+  #toCanvas(e: PointerEvent): { x: number; y: number } {
+    const rect = this.#canvas.getBoundingClientRect();
     if (rect.width <= 0 || rect.height <= 0) return { x: 0, y: 0 };
     return {
       x: ((e.clientX - rect.left) / rect.width) * VIEW_W,
@@ -104,31 +104,31 @@ export class Input {
     };
   }
 
-  private sample(e: PointerEvent): PointerSample {
-    const { x, y } = this.toCanvas(e);
+  #sample(e: PointerEvent): PointerSample {
+    const { x, y } = this.#toCanvas(e);
     return { id: e.pointerId, x, y, button: e.button, pointerType: e.pointerType };
   }
 
   // ---------------------------------------------------------------- keyboard
 
-  private bindKeyboard(): void {
+  #bindKeyboard(): void {
     const block = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'Tab']);
 
     window.addEventListener('keydown', (e) => {
       if (block.has(e.code)) e.preventDefault();
-      if (!e.repeat) this.pressedKeys.add(e.code);
-      this.keys.add(e.code);
+      if (!e.repeat) this.#pressedKeys.add(e.code);
+      this.#keys.add(e.code);
       if (!e.ctrlKey && !e.metaKey && !e.altKey && e.key.length === 1) {
         this.typed.push(e.key);
       }
     });
 
     window.addEventListener('keyup', (e) => {
-      this.keys.delete(e.code);
+      this.#keys.delete(e.code);
     });
 
     window.addEventListener('blur', () => {
-      this.keys.clear();
+      this.#keys.clear();
       this.mouse.left = false;
       this.mouse.right = false;
     });
@@ -136,14 +136,14 @@ export class Input {
 
   // ----------------------------------------------------------------- pointer
 
-  private bindPointer(): void {
-    this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+  #bindPointer(): void {
+    this.#canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
-    this.canvas.addEventListener('pointerdown', (e) => {
-      const sample = this.sample(e);
+    this.#canvas.addEventListener('pointerdown', (e) => {
+      const sample = this.#sample(e);
       this.pointerDowns.push(sample);
       if (e.pointerType === 'touch') {
-        this.enableTouchMode();
+        this.#enableTouchMode();
         return;
       }
       this.mouse.x = sample.x;
@@ -159,7 +159,7 @@ export class Input {
 
     // Moves are tracked on the window so a thumb can slide off the canvas.
     window.addEventListener('pointermove', (e) => {
-      const sample = this.sample(e);
+      const sample = this.#sample(e);
       this.pointerMoves.push(sample);
       if (e.pointerType === 'touch') return;
       this.mouse.x = sample.x;
@@ -169,7 +169,7 @@ export class Input {
     });
 
     const release = (e: PointerEvent): void => {
-      this.pointerUps.push(this.sample(e));
+      this.pointerUps.push(this.#sample(e));
       if (e.pointerType === 'touch') return;
       if (e.button === 0) this.mouse.left = false;
       if (e.button === 2) this.mouse.right = false;
@@ -180,7 +180,7 @@ export class Input {
     window.addEventListener('pointercancel', release);
   }
 
-  private enableTouchMode(): void {
+  #enableTouchMode(): void {
     this.usingTouch = true;
   }
 }
