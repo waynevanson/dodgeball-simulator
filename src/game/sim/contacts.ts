@@ -1,4 +1,4 @@
-import { EcsWorld } from '../../ecs/core';
+import type { World } from '../ecs';
 import { sfx } from '../audio';
 import { PHYS } from '../constants/physics';
 import { NEAR_MISS } from '../constants/pitch';
@@ -15,7 +15,7 @@ import { doPickup } from './throwing';
 
 // ------------------------------------------------------------------ contacts
 
-export function resolveCollisions(world: EcsWorld): void {
+export function resolveCollisions(world: World): void {
   if (world.resource('set').resolved) return;
 
   for (const ball of balls(world)) {
@@ -59,7 +59,7 @@ export function resolveCollisions(world: EcsWorld): void {
  * Rule 16.1: a valid attempt lands or passes within a metre of an opponent,
  * or of where an opponent stood when the ball was released.
  */
-export function checkAttempt(world: EcsWorld, ball: BallView): void {
+export function checkAttempt(world: World, ball: BallView): void {
   if (!ball.state.live || ball.state.validAttempt) return;
   for (const pos of ball.state.releasePositions) {
     if (dist(ball.transform.x, ball.transform.y, pos.x, pos.y) < NEAR_MISS) {
@@ -78,7 +78,7 @@ export function checkAttempt(world: EcsWorld, ball: BallView): void {
   }
 }
 
-export function doHit(world: EcsWorld, player: PlayerView, ball: BallView): void {
+export function doHit(world: World, player: PlayerView, ball: BallView): void {
   const color = ball.state.team ? TEAMS[ball.state.team].main : '#fbbf24';
   ball.state.validAttempt = true;
   landBall(world, ball);
@@ -110,7 +110,7 @@ export function doHit(world: EcsWorld, player: PlayerView, ball: BallView): void
   eliminate(world, player, 'hit');
 }
 
-export function doCatch(world: EcsWorld, player: PlayerView, ball: BallView): void {
+export function doCatch(world: World, player: PlayerView, ball: BallView): void {
   player.cooldowns.catchWindow = 0;
 
   // Rule 21: a ball in hand is a shield, not a free catch.
@@ -165,7 +165,7 @@ export function doCatch(world: EcsWorld, player: PlayerView, ball: BallView): vo
 }
 
 /** Rule 21.2: a blocked ball remains live. */
-export function doBlock(world: EcsWorld, player: PlayerView, ball: BallView): void {
+export function doBlock(world: World, player: PlayerView, ball: BallView): void {
   player.cooldowns.catchWindow = 0;
   const angle = Math.atan2(ball.transform.vy, ball.transform.vx) + Math.PI + rand(-0.55, 0.55);
   const speed = Math.max(

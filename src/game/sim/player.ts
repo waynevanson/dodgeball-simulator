@@ -1,4 +1,4 @@
-import { EcsWorld } from '../../ecs/core';
+import type { World } from '../ecs';
 import { sfx } from '../audio';
 import { PHYS } from '../constants/physics';
 import { COURT } from '../constants/view';
@@ -8,7 +8,7 @@ import { bounds } from '../queries';
 import type { PlayerView } from '../queries';
 import { throwBall } from './throwing';
 
-export function stepPlayer(world: EcsWorld, view: PlayerView, dt: number): void {
+export function stepPlayer(world: World, view: PlayerView, dt: number): void {
   const P = PHYS;
   const { transform, action, cooldowns, condition, intent } = view;
 

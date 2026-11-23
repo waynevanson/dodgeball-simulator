@@ -1,4 +1,4 @@
-import { EcsWorld } from '../../ecs/core';
+import type { World } from '../ecs';
 import { sfx } from '../audio';
 import { PHYS } from '../constants/physics';
 import { TEAMS } from '../constants/teams';
@@ -8,7 +8,7 @@ import { carriedBall, players, resetShotClock } from '../queries';
 import type { BallView, PlayerView } from '../queries';
 import { endRush } from './rules';
 
-export function throwBall(world: EcsWorld, view: PlayerView): void {
+export function throwBall(world: World, view: PlayerView): void {
   const ball = carriedBall(world, view);
   if (!ball) return;
 
@@ -56,7 +56,7 @@ export function throwBall(world: EcsWorld, view: PlayerView): void {
   sfx.throwBall(power);
 }
 
-export function doPickup(world: EcsWorld, view: PlayerView, ball: BallView): void {
+export function doPickup(world: World, view: PlayerView, ball: BallView): void {
   ball.held.by = view.entity;
   ball.state.live = false;
   ball.state.team = view.tag.team;

@@ -1,4 +1,4 @@
-import { EcsWorld } from '../../ecs/core';
+import type { World } from '../ecs';
 import { ATTACK_DIST } from '../constants/pitch';
 import { COURT } from '../constants/view';
 import { angleTo, clamp, dist, norm, rand } from '../math';
@@ -17,7 +17,7 @@ import { dodgeDirection, findThreat } from './threats';
  *  - 17.3: hurry the throw when our team is on the shot clock
  *  - 21 / 9.7.1: only block with a ball, never during sudden death
  */
-export function buildAIIntent(world: EcsWorld, view: PlayerView, dt: number): Intent {
+export function buildAIIntent(world: World, view: PlayerView, dt: number): Intent {
   const brain = view.brain;
   const diff = brain.diff;
   const transform = view.transform;

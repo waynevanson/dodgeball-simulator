@@ -1,4 +1,4 @@
-import type { System } from '../../ecs/core';
+import type { System } from '../ecs';
 import { sfx } from '../audio';
 import { COUNTDOWN_SECONDS } from '../constants/rules';
 

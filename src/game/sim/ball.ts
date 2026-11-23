@@ -1,4 +1,4 @@
-import { EcsWorld } from '../../ecs/core';
+import type { World } from '../ecs';
 import { sfx } from '../audio';
 import { PHYS } from '../constants/physics';
 import { COURT } from '../constants/view';
@@ -7,7 +7,7 @@ import type { BallView } from '../queries';
 
 // --------------------------------------------------------------------- balls
 
-export function stepBall(world: EcsWorld, ball: BallView, dt: number): void {
+export function stepBall(world: World, ball: BallView, dt: number): void {
   const { transform, state, tag } = ball;
   tag.age += dt;
   tag.bob += dt * 2;
@@ -91,7 +91,7 @@ export function stepBall(world: EcsWorld, ball: BallView, dt: number): void {
 }
 
 /** A live ball becomes dead on contact with any surface (Rule 15.6). */
-export function landBall(world: EcsWorld, ball: BallView): void {
+export function landBall(world: World, ball: BallView): void {
   const wasLive = ball.state.live;
   ball.state.live = false;
   ball.state.team = null;
@@ -106,7 +106,7 @@ export function onBallSurface(speed: number): void {
   sfx.bounce(speed / 1300);
 }
 
-export function onBallLanded(world: EcsWorld, ball: BallView): void {
+export function onBallLanded(world: World, ball: BallView): void {
   if (ball.state.validAttempt || ball.state.warningIssued || !ball.state.throwerTeam) return;
   ball.state.warningIssued = true;
   world.resource('warnings')[ball.state.throwerTeam] += 1;

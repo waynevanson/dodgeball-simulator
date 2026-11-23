@@ -1,4 +1,4 @@
-import type { System } from '../../ecs/core';
+import type { System } from '../ecs';
 import { VIEW_H, VIEW_W } from '../constants/view';
 import { render } from '../renderer';
 import { drawUi } from '../ui';

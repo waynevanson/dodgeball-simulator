@@ -1,7 +1,7 @@
-import { EcsWorld } from '../../ecs/core';
+import type { World } from '../ecs';
 
 export function addFloater(
-  world: EcsWorld,
+  world: World,
   x: number,
   y: number,
   text: string,

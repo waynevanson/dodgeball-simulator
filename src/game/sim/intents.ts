@@ -1,4 +1,4 @@
-import { EcsWorld } from '../../ecs/core';
+import type { World } from '../ecs';
 import { buildAIIntent } from '../ai';
 import { Input } from '../input';
 import { angleTo, dist } from '../math';
@@ -14,7 +14,7 @@ import type { Intent } from '../types';
 
 // ------------------------------------------------------------------- intents
 
-export function buildIntents(world: EcsWorld, input: Input, dt: number): void {
+export function buildIntents(world: World, input: Input, dt: number): void {
   assignClaims(world);
   for (const view of players(world)) {
     if (!view.condition.alive) continue;
@@ -26,7 +26,7 @@ export function buildIntents(world: EcsWorld, input: Input, dt: number): void {
 }
 
 /** Nearest eligible ball per player, rebuilt every frame for the AI. */
-export function assignClaims(world: EcsWorld): void {
+export function assignClaims(world: World): void {
   const claims = world.resource('claims');
   claims.byPlayer.clear();
   claims.balls.clear();
@@ -62,7 +62,7 @@ export function assignClaims(world: EcsWorld): void {
   }
 }
 
-export function humanIntent(world: EcsWorld, view: PlayerView, input: Input): Intent {
+export function humanIntent(world: World, view: PlayerView, input: Input): Intent {
   const intent: Intent = {
     mx: 0,
     my: 0,
@@ -104,7 +104,7 @@ export function humanIntent(world: EcsWorld, view: PlayerView, input: Input): In
   return intent;
 }
 
-export function autoAim(world: EcsWorld, view: PlayerView): number {
+export function autoAim(world: World, view: PlayerView): number {
   let best: PlayerView | null = null;
   let bestDistance = Infinity;
   for (const other of players(world)) {

@@ -1,4 +1,4 @@
-import { EcsWorld } from '../../ecs/core';
+import type { World } from '../ecs';
 import { COURT } from '../constants/view';
 import { clamp, rand } from '../math';
 import { balls, bounds, players } from '../queries';
@@ -8,7 +8,7 @@ import { stepPlayer } from './player';
 
 // ---------------------------------------------------------------- simulation
 
-export function simulate(world: EcsWorld, dt: number, frozen: boolean): void {
+export function simulate(world: World, dt: number, frozen: boolean): void {
   const steps = Math.max(1, Math.ceil(dt / (1 / 120)));
   const sdt = dt / steps;
   for (let i = 0; i < steps; i++) {
@@ -24,7 +24,7 @@ export function simulate(world: EcsWorld, dt: number, frozen: boolean): void {
   }
 }
 
-export function separatePlayers(world: EcsWorld): void {
+export function separatePlayers(world: World): void {
   const list = players(world);
   for (let i = 0; i < list.length; i++) {
     const a = list[i];

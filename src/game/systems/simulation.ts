@@ -1,4 +1,4 @@
-import type { System } from '../../ecs/core';
+import type { System } from '../ecs';
 import { SUDDEN_DEATH_AFTER } from '../constants/rules';
 import { updateEffects } from '../effects/update';
 import { buildIntents } from '../sim/intents';

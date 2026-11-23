@@ -1,4 +1,4 @@
-import { EcsWorld } from '../../ecs/core';
+import type { World } from '../ecs';
 import { sfx } from '../audio';
 import { ATTACK_DIST } from '../constants/pitch';
 import { SHOT_CLOCK, SHOT_CLOCK_WARN } from '../constants/rules';
@@ -14,7 +14,7 @@ import type { TeamId } from '../types';
 // -------------------------------------------------------------------- rules
 
 /** Rule 13.7.1: a rushed ball arms once it fully crosses the attack line. */
-export function updateArming(world: EcsWorld): void {
+export function updateArming(world: World): void {
   for (const player of players(world)) {
     const ball = carriedBall(world, player);
     if (!player.condition.alive || !ball || ball.state.armed) continue;
@@ -27,12 +27,12 @@ export function updateArming(world: EcsWorld): void {
   }
 }
 
-export function updateRush(world: EcsWorld): void {
+export function updateRush(world: World): void {
   if (!world.resource('rush').active) return;
   if (balls(world).every((ball) => ball.state.touched)) endRush(world);
 }
 
-export function endRush(world: EcsWorld): void {
+export function endRush(world: World): void {
   const rush = world.resource('rush');
   if (!rush.active) return;
   rush.active = false;
@@ -45,7 +45,7 @@ export function endRush(world: EcsWorld): void {
   }
 }
 
-export function updateShotClock(world: EcsWorld, dt: number): void {
+export function updateShotClock(world: World, dt: number): void {
   const shot = world.resource('shot');
   const advantage = advantageTeam(world);
   if (advantage !== shot.team) {
@@ -65,7 +65,7 @@ export function updateShotClock(world: EcsWorld, dt: number): void {
 }
 
 /** Rule 17.3.3: ten seconds without an attempt forfeits every held ball. */
-export function forfeitPossession(world: EcsWorld, team: TeamId): void {
+export function forfeitPossession(world: World, team: TeamId): void {
   const opponent: TeamId = team === 'blue' ? 'red' : 'blue';
   const dropX = opponent === 'blue' ? COURT.cx - ATTACK_DIST - 80 : COURT.cx + ATTACK_DIST + 80;
 
@@ -100,7 +100,7 @@ export function forfeitPossession(world: EcsWorld, team: TeamId): void {
   resetShotClock(world);
 }
 
-export function lineUp(world: EcsWorld): void {
+export function lineUp(world: World): void {
   for (const player of players(world)) {
     if (!player.condition.alive) continue;
     const [x, y] = SPAWNS[player.tag.team][player.tag.slot];
@@ -115,7 +115,7 @@ export function lineUp(world: EcsWorld): void {
   }
 }
 
-export function enterSuddenDeath(world: EcsWorld): void {
+export function enterSuddenDeath(world: World): void {
   world.resource('set').suddenDeath = true;
   addFloater(world, COURT.cx, COURT.cy - 40, 'SUDDEN DEATH', '#ff8a9a', 2.4);
   addFloater(world, COURT.cx, COURT.cy + 2, 'BLOCKING DISABLED', 'rgba(255,194,202,0.9)', 2.4);

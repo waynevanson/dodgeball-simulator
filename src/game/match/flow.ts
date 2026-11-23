@@ -1,12 +1,12 @@
-import { EcsWorld } from '../../ecs/core';
-import type { System } from '../../ecs/core';
+import type { World } from '../ecs';
+import type { System } from '../ecs';
 import { COUNTDOWN_MS, SET_BREAK_MS } from '../constants/rules';
 import type { FlowContext, FlowStep, Transition, Trigger } from './state';
 import { ENTER, MATCH_FLOW } from './table';
 
 // ------------------------------------------------------------------ execution
 
-export function send(world: EcsWorld, trigger: Trigger): void {
+export function send(world: World, trigger: Trigger): void {
   world.resource('flow').pending.push(trigger);
 }
 
@@ -18,7 +18,7 @@ export function resolve(context: FlowContext, trigger: Trigger): Transition | un
   });
 }
 
-export function apply(world: EcsWorld, trigger: Trigger): void {
+export function apply(world: World, trigger: Trigger): void {
   const context: FlowContext = {
     world,
     phase: world.resource('phase'),
@@ -41,7 +41,7 @@ export function apply(world: EcsWorld, trigger: Trigger): void {
  * Time-based transitions, plus the one result the world owns: a resolved set
  * raises `setOver`. The world never calls back into flow; systems read state.
  */
-export function poll(world: EcsWorld, dt: number): void {
+export function poll(world: World, dt: number): void {
   const phase = world.resource('phase');
   const flow = world.resource('flow');
 

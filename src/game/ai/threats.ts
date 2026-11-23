@@ -1,4 +1,4 @@
-import { EcsWorld } from '../../ecs/core';
+import type { World } from '../ecs';
 import { BALL_RADIUS } from '../constants/pitch';
 import { COURT } from '../constants/view';
 import { closestApproach, norm } from '../math';
@@ -12,7 +12,7 @@ export interface Threat {
 }
 
 /** The incoming ball most likely to ruin this player's day. */
-export function findThreat(world: EcsWorld, view: PlayerView): Threat | null {
+export function findThreat(world: World, view: PlayerView): Threat | null {
   let best: Threat | null = null;
   for (const ball of balls(world)) {
     if (!ball.state.live || ball.held.by !== null || ball.state.team === view.tag.team) continue;
@@ -36,7 +36,7 @@ export function findThreat(world: EcsWorld, view: PlayerView): Threat | null {
 
 /** Sidestep perpendicular to the incoming ball's path. */
 export function dodgeDirection(
-  world: EcsWorld,
+  world: World,
   view: PlayerView,
   ball: BallView,
 ): { x: number; y: number } {

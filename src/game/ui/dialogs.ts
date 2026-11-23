@@ -1,4 +1,4 @@
-import { EcsWorld } from '../../ecs/core';
+import type { World } from '../ecs';
 import { DIFFICULTIES } from '../constants/difficulty';
 import { WINS_NEEDED } from '../constants/rules';
 import { VIEW_W } from '../constants/view';
@@ -19,7 +19,7 @@ export function drawPause(ctx: CanvasRenderingContext2D, ui: UiState): void {
   label(ctx, 'Press Esc to get back in.', cx, 500, `500 11px ${FONT}`, INK_FAINT);
 }
 
-export function drawResults(ctx: CanvasRenderingContext2D, world: EcsWorld, ui: UiState): void {
+export function drawResults(ctx: CanvasRenderingContext2D, world: World, ui: UiState): void {
   const layout = resultsLayout();
   const match = world.resource('match');
   const win = (match.matchWinner ?? (match.score.blue > match.score.red ? 'blue' : 'red')) === 'blue';

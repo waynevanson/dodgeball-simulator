@@ -1,5 +1,5 @@
-import { EcsWorld } from '../../ecs/core';
-import type { System } from '../../ecs/core';
+import type { World } from '../ecs';
+import type { System } from '../ecs';
 import { PLAYER_NAME_MAX } from '../constants/roster';
 import { setLineup } from '../spawn/match';
 import { act } from './actions';
@@ -9,7 +9,7 @@ import type { UiState } from './state';
 
 // --------------------------------------------------------------------- input
 
-export function commitName(world: EcsWorld, ui: UiState): void {
+export function commitName(world: World, ui: UiState): void {
   if (!ui.editingName) return;
   ui.editingName = false;
   const lineup = world.resource('lineup');

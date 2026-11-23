@@ -1,4 +1,4 @@
-import { EcsWorld } from '../../ecs/core';
+import type { World } from '../ecs';
 import { COURT, VIEW_W } from '../constants/view';
 import { Input } from '../input';
 import { roundRect } from '../math';
@@ -8,7 +8,7 @@ import { FONT, MONO } from './style';
 
 export function drawBottomBar(
   ctx: CanvasRenderingContext2D,
-  world: EcsWorld,
+  world: World,
   hud: Hud,
   input: Input,
   time: number,

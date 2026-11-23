@@ -1,4 +1,4 @@
-import { EcsWorld } from '../../ecs/core';
+import type { World } from '../ecs';
 import { VIEW_H, VIEW_W } from '../constants/view';
 import { Input } from '../input';
 import type { Hud } from '../types';
@@ -14,7 +14,7 @@ import { drawQueues } from './queues';
 
 export function render(
   ctx: CanvasRenderingContext2D,
-  world: EcsWorld,
+  world: World,
   hud: Hud,
   input: Input,
   time: number,
@@ -46,7 +46,7 @@ export function render(
   drawFlash(ctx, world);
 }
 
-export function drawFlash(ctx: CanvasRenderingContext2D, world: EcsWorld): void {
+export function drawFlash(ctx: CanvasRenderingContext2D, world: World): void {
   const flash = world.resource('feedback').flash;
   if (flash <= 0.01) return;
   ctx.fillStyle = `rgba(255, 255, 255, ${Math.min(0.3, flash * 0.28)})`;

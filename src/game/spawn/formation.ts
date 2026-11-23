@@ -1,4 +1,4 @@
-import { EcsWorld } from '../../ecs/core';
+import type { World } from '../ecs';
 import { BALL_MARK_SPACING, PLAYER_RADIUS } from '../constants/pitch';
 import { ENTER_GRACE } from '../constants/rules';
 import { COURT } from '../constants/view';
@@ -31,7 +31,7 @@ export const BALL_SPAWNS: Array<[number, number]> = [
 /** Facing is towards the opposition at the start of a set. */
 export const homeFacing = (team: TeamId): number => (team === 'blue' ? 0 : Math.PI);
 
-export function setupFormation(world: EcsWorld): void {
+export function setupFormation(world: World): void {
   clearEffects(world);
   for (const entity of world.query('player')) {
     const tag = world.get(entity, 'player');
@@ -46,7 +46,7 @@ export function setupFormation(world: EcsWorld): void {
   });
 }
 
-export function resetPlayer(world: EcsWorld, entity: number, x: number, y: number): void {
+export function resetPlayer(world: World, entity: number, x: number, y: number): void {
   const transform = world.get(entity, 'transform');
   const tag = world.get(entity, 'player');
   const condition = world.get(entity, 'condition');
@@ -107,7 +107,7 @@ export function resetPlayer(world: EcsWorld, entity: number, x: number, y: numbe
 }
 
 /** Rule 25.2: return from the queue over the back line. */
-export function reenterPlayer(world: EcsWorld, entity: number): void {
+export function reenterPlayer(world: World, entity: number): void {
   const transform = world.get(entity, 'transform');
   const tag = world.get(entity, 'player');
   const condition = world.get(entity, 'condition');
@@ -147,7 +147,7 @@ export function reenterPlayer(world: EcsWorld, entity: number): void {
   }
 }
 
-export function placeBall(world: EcsWorld, entity: number, x: number, y: number): void {
+export function placeBall(world: World, entity: number, x: number, y: number): void {
   const transform = world.get(entity, 'transform');
   const state = world.get(entity, 'ballState');
   const held = world.get(entity, 'held');
@@ -180,7 +180,7 @@ export function placeBall(world: EcsWorld, entity: number, x: number, y: number)
   if (trail) trail.points = [];
 }
 
-export function clearEffects(world: EcsWorld): void {
+export function clearEffects(world: World): void {
   for (const key of ['particle', 'floater', 'glasses'] as const) {
     for (const entity of world.query(key)) world.despawn(entity);
   }

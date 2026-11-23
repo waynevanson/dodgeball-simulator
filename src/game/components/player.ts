@@ -1,4 +1,4 @@
-import type { Entity } from '../../ecs/core';
+import type { Entity } from '../ecs';
 import type { Difficulty, TeamId } from '../types';
 import type { TrailPoint } from './shared';
 

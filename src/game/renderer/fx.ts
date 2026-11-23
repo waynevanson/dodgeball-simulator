@@ -1,10 +1,10 @@
-import { EcsWorld } from '../../ecs/core';
+import type { World } from '../ecs';
 import { TAU, clamp } from '../math';
 import { FONT } from './style';
 
 export function drawParticles(
   ctx: CanvasRenderingContext2D,
-  world: EcsWorld,
+  world: World,
   layer: 'under' | 'over',
 ): void {
   ctx.save();
@@ -49,7 +49,7 @@ export function drawParticles(
   ctx.restore();
 }
 
-export function drawFloaters(ctx: CanvasRenderingContext2D, world: EcsWorld): void {
+export function drawFloaters(ctx: CanvasRenderingContext2D, world: World): void {
   ctx.save();
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';

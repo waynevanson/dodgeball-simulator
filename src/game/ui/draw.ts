@@ -1,4 +1,4 @@
-import { EcsWorld } from '../../ecs/core';
+import type { World } from '../ecs';
 import { drawPause, drawResults } from './dialogs';
 import { isPortrait, showingControls, showingTopBar } from './hit';
 import { drawMenu } from './menu';
@@ -7,7 +7,7 @@ import { overlay } from './shapes';
 import { drawTopBar } from './topbar';
 import { drawRotate, drawTouchControls } from './touch';
 
-export function drawUi(ctx: CanvasRenderingContext2D, world: EcsWorld): void {
+export function drawUi(ctx: CanvasRenderingContext2D, world: World): void {
   const ui = world.resource('ui');
   const input = world.resource('input');
 

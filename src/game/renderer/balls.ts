@@ -1,10 +1,10 @@
-import { EcsWorld } from '../../ecs/core';
+import type { World } from '../ecs';
 import { TAU } from '../math';
 import { balls } from '../queries';
 import type { BallView } from '../queries';
 import { drawSpectacles } from './style';
 
-export function drawFallenGlasses(ctx: CanvasRenderingContext2D, world: EcsWorld): void {
+export function drawFallenGlasses(ctx: CanvasRenderingContext2D, world: World): void {
   for (const entity of world.query('glasses')) {
     const transform = world.get(entity, 'transform')!;
     const glasses = world.get(entity, 'glasses')!;
@@ -93,7 +93,7 @@ export function drawBallShape(ctx: CanvasRenderingContext2D, ball: BallView): vo
   }
 }
 
-export function drawGroundBalls(ctx: CanvasRenderingContext2D, world: EcsWorld): void {
+export function drawGroundBalls(ctx: CanvasRenderingContext2D, world: World): void {
   const clock = world.resource('clock');
   for (const ball of balls(world)) {
     if (ball.held.by !== null || ball.state.live) continue;
@@ -111,7 +111,7 @@ export function drawGroundBalls(ctx: CanvasRenderingContext2D, world: EcsWorld):
   }
 }
 
-export function drawActiveBalls(ctx: CanvasRenderingContext2D, world: EcsWorld): void {
+export function drawActiveBalls(ctx: CanvasRenderingContext2D, world: World): void {
   for (const ball of balls(world)) {
     if (ball.held.by !== null || !ball.state.live) continue;
     for (const trail of ball.trail.points) {

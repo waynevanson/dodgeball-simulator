@@ -1,4 +1,4 @@
-import type { System } from '../../ecs/core';
+import type { System } from '../ecs';
 
 /** Consume one-shot input edges after every system that reads input. */
 export function inputFrameSystem(): System {

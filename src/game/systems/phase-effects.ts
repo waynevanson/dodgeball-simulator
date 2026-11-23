@@ -1,4 +1,4 @@
-import type { System } from '../../ecs/core';
+import type { System } from '../ecs';
 import { sfx } from '../audio';
 import { celebrate, punch } from '../effects/feedback';
 import type { Phase, TeamId } from '../types';

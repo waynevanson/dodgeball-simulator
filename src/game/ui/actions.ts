@@ -1,4 +1,4 @@
-import { EcsWorld } from '../../ecs/core';
+import type { World } from '../ecs';
 import { sfx } from '../audio';
 import { DEFAULT_CUSTOM_NAME } from '../constants/roster';
 import { send } from '../match/flow';
@@ -7,7 +7,7 @@ import type { DifficultyId } from '../types';
 import { commitName } from './flow';
 import type { UiState } from './state';
 
-export function act(world: EcsWorld, ui: UiState, id: string): void {
+export function act(world: World, ui: UiState, id: string): void {
   const match = world.resource('match');
   const lineup = world.resource('lineup');
 

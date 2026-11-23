@@ -27,12 +27,6 @@ export interface UiState {
   throwId: number | null;
 }
 
-declare module '../../ecs/core' {
-  interface ResourceMap {
-    ui: UiState;
-  }
-}
-
 export const FONT = 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 
 export const MONO = 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace';

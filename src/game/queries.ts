@@ -1,4 +1,4 @@
-import type { EcsWorld, Entity } from '../ecs/core';
+import type { World, Entity } from './ecs';
 import type {
   Action,
   BallState,
@@ -41,7 +41,7 @@ export interface BallView {
   readonly trail: BallTrail;
 }
 
-export function playerView(world: EcsWorld, entity: Entity): PlayerView {
+export function playerView(world: World, entity: Entity): PlayerView {
   return {
     entity,
     transform: world.get(entity, 'transform')!,
@@ -57,11 +57,11 @@ export function playerView(world: EcsWorld, entity: Entity): PlayerView {
   };
 }
 
-export function players(world: EcsWorld): PlayerView[] {
+export function players(world: World): PlayerView[] {
   return world.query('player').map((entity) => playerView(world, entity));
 }
 
-export function ballView(world: EcsWorld, entity: Entity): BallView {
+export function ballView(world: World, entity: Entity): BallView {
   return {
     entity,
     transform: world.get(entity, 'transform')!,
@@ -72,16 +72,16 @@ export function ballView(world: EcsWorld, entity: Entity): BallView {
   };
 }
 
-export function balls(world: EcsWorld): BallView[] {
+export function balls(world: World): BallView[] {
   return world.query('ball').map((entity) => ballView(world, entity));
 }
 
-export function human(world: EcsWorld): PlayerView | null {
+export function human(world: World): PlayerView | null {
   const [entity] = world.query('player', 'human');
   return entity === undefined ? null : playerView(world, entity);
 }
 
-export function carriedBall(world: EcsWorld, view: PlayerView): BallView | null {
+export function carriedBall(world: World, view: PlayerView): BallView | null {
   return view.carry.ball === null ? null : ballView(world, view.carry.ball);
 }
 
@@ -92,7 +92,7 @@ const HALVES: Record<TeamId, { minX: number; maxX: number }> = {
   red: { minX: COURT.cx + 2, maxX: COURT.right },
 };
 
-export function bounds(world: EcsWorld, team: TeamId): { minX: number; maxX: number } {
+export function bounds(world: World, team: TeamId): { minX: number; maxX: number } {
   if (!world.resource('rush').active) return HALVES[team];
   // Rule 13.6.2: you may touch or cross the centre line during the rush.
   return team === 'blue'
@@ -117,7 +117,7 @@ export function isOpponentSide(team: TeamId, x: number): boolean {
 
 // -------------------------------------------------------------------- counts
 
-export function aliveCount(world: EcsWorld, team: TeamId): number {
+export function aliveCount(world: World, team: TeamId): number {
   let alive = 0;
   for (const view of players(world)) {
     if (view.condition.alive && view.tag.team === team) alive += 1;
@@ -125,7 +125,7 @@ export function aliveCount(world: EcsWorld, team: TeamId): number {
   return alive;
 }
 
-export function heldCount(world: EcsWorld, team: TeamId): number {
+export function heldCount(world: World, team: TeamId): number {
   let held = 0;
   for (const view of players(world)) {
     if (view.condition.alive && view.tag.team === team && view.carry.ball !== null) held += 1;
@@ -134,7 +134,7 @@ export function heldCount(world: EcsWorld, team: TeamId): number {
 }
 
 /** Rule 17.3: who holds the ball advantage right now. */
-export function advantageTeam(world: EcsWorld): TeamId | null {
+export function advantageTeam(world: World): TeamId | null {
   const heldBlue = heldCount(world, 'blue');
   const heldRed = heldCount(world, 'red');
   if (heldBlue + heldRed === 0) return null;
@@ -153,7 +153,7 @@ export function advantageTeam(world: EcsWorld): TeamId | null {
   return null;
 }
 
-export function resetShotClock(world: EcsWorld): void {
+export function resetShotClock(world: World): void {
   const shot = world.resource('shot');
   shot.team = null;
   shot.clock = SHOT_CLOCK;

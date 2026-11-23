@@ -1,65 +1,48 @@
-/**
- * A deliberately small ECS: resources for global state, entities + components
- * for anything that composes per instance, and an ordered schedule that
- * advances the whole thing one tick at a time.
- *
- * The rule of thumb used across the app: state that describes *the run* (which
- * phase we are in, the score, the HUD snapshot) is a resource; state that
- * describes *a thing* (this player, this ball) is a component.
- */
+export type { Entity } from './entity-allocator';
 
-export type Entity = number;
+import type { Entity } from './entity-allocator';
 
-/** Global state. Feature modules widen this with declaration merging. */
-export interface ResourceMap {}
+export type ComponentKey<C> = Extract<keyof C, string>;
 
-/** Per-entity state. Feature modules widen this with declaration merging. */
-export interface ComponentMap {}
+export type ResourceKey<R> = Extract<keyof R, string>;
 
-export interface TickContext {
-  readonly world: EcsWorld;
-  /** Seconds since the previous tick, clamped by the driver. */
+export interface TickContext<C extends object, R extends object> {
+  readonly world: EcsWorld<C, R>;
   readonly dt: number;
-  /** Seconds since the schedule started running. */
   readonly now: number;
-  /** 1-based tick counter. */
   readonly tick: number;
 }
 
-export interface System {
+export interface System<C extends object, R extends object> {
   readonly name: string;
-  run(context: TickContext): void;
+  run(context: TickContext<C, R>): void;
 }
 
-export class EcsWorld {
+export class EcsWorld<C extends object, R extends object> {
   private readonly entities = new Set<Entity>();
-  private readonly stores = new Map<string, Map<Entity, unknown>>();
-  private readonly resources = new Map<string, unknown>();
-  private readonly systems: System[] = [];
+  private readonly stores = new Map<ComponentKey<C>, Map<Entity, unknown>>();
+  private readonly resources = new Map<ResourceKey<R>, unknown>();
+  private readonly systems: Array<System<C, R>> = [];
   private nextEntity: Entity = 1;
   private ticks = 0;
   private time = 0;
 
-  // ------------------------------------------------------------------ resources
-
-  setResource<K extends keyof ResourceMap>(key: K, value: ResourceMap[K]): this {
-    this.resources.set(key as string, value);
+  setResource<K extends ResourceKey<R>>(key: K, value: R[K]): this {
+    this.resources.set(key, value);
     return this;
   }
 
-  hasResource<K extends keyof ResourceMap>(key: K): boolean {
-    return this.resources.has(key as string);
+  hasResource<K extends ResourceKey<R>>(key: K): boolean {
+    return this.resources.has(key);
   }
 
-  resource<K extends keyof ResourceMap>(key: K): ResourceMap[K] {
-    const value = this.resources.get(key as string);
+  resource<K extends ResourceKey<R>>(key: K): R[K] {
+    const value = this.resources.get(key);
     if (value === undefined) {
-      throw new Error(`EcsWorld: missing resource "${String(key)}"`);
+      throw new Error(`EcsWorld: missing resource "${key}"`);
     }
-    return value as ResourceMap[K];
+    return value as R[K];
   }
-
-  // ------------------------------------------------------------------- entities
 
   spawn(): Entity {
     const entity = this.nextEntity++;
@@ -80,26 +63,23 @@ export class EcsWorld {
     return this.entities.size;
   }
 
-  // ----------------------------------------------------------------- components
-
-  add<K extends keyof ComponentMap>(entity: Entity, key: K, value: ComponentMap[K]): void {
+  add<K extends ComponentKey<C>>(entity: Entity, key: K, value: C[K]): void {
     this.store(key).set(entity, value);
   }
 
-  remove<K extends keyof ComponentMap>(entity: Entity, key: K): void {
+  remove<K extends ComponentKey<C>>(entity: Entity, key: K): void {
     this.store(key).delete(entity);
   }
 
-  has<K extends keyof ComponentMap>(entity: Entity, key: K): boolean {
+  has<K extends ComponentKey<C>>(entity: Entity, key: K): boolean {
     return this.store(key).has(entity);
   }
 
-  get<K extends keyof ComponentMap>(entity: Entity, key: K): ComponentMap[K] | undefined {
-    return this.store(key).get(entity) as ComponentMap[K] | undefined;
+  get<K extends ComponentKey<C>>(entity: Entity, key: K): C[K] | undefined {
+    return this.store(key).get(entity) as C[K] | undefined;
   }
 
-  /** Every live entity carrying all of the given components. */
-  query(...keys: Array<keyof ComponentMap>): Entity[] {
+  query<K extends ComponentKey<C>>(...keys: K[]): Entity[] {
     if (keys.length === 0) return [...this.entities];
 
     let smallest: Map<Entity, unknown> | null = null;
@@ -118,19 +98,7 @@ export class EcsWorld {
     return found;
   }
 
-  private store<K extends keyof ComponentMap>(key: K): Map<Entity, unknown> {
-    const name = key as string;
-    let store = this.stores.get(name);
-    if (!store) {
-      store = new Map<Entity, unknown>();
-      this.stores.set(name, store);
-    }
-    return store;
-  }
-
-  // ------------------------------------------------------------------- schedule
-
-  addSystem(system: System): this {
+  addSystem(system: System<C, R>): this {
     this.systems.push(system);
     return this;
   }
@@ -142,12 +110,21 @@ export class EcsWorld {
   tick(dt: number): void {
     this.ticks += 1;
     this.time += dt;
-    const context: TickContext = {
+    const context: TickContext<C, R> = {
       world: this,
       dt,
       now: this.time,
       tick: this.ticks,
     };
     for (const system of this.systems) system.run(context);
+  }
+
+  private store<K extends ComponentKey<C>>(key: K): Map<Entity, unknown> {
+    let store = this.stores.get(key);
+    if (!store) {
+      store = new Map<Entity, unknown>();
+      this.stores.set(key, store);
+    }
+    return store;
   }
 }

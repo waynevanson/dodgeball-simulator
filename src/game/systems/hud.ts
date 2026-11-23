@@ -1,10 +1,10 @@
-import { EcsWorld } from '../../ecs/core';
-import type { System } from '../../ecs/core';
+import type { World } from '../ecs';
+import type { System } from '../ecs';
 import { DIFFICULTIES } from '../constants/difficulty';
 import { playerView, players } from '../queries';
 import type { Hud, HudPlayer, TeamId } from '../types';
 
-export const toHudPlayer = (world: EcsWorld, entity: number): HudPlayer => {
+export const toHudPlayer = (world: World, entity: number): HudPlayer => {
   const view = playerView(world, entity);
   return {
     id: String(entity),
@@ -15,7 +15,7 @@ export const toHudPlayer = (world: EcsWorld, entity: number): HudPlayer => {
   };
 };
 
-export function buildHud(world: EcsWorld): Hud {
+export function buildHud(world: World): Hud {
   const phase = world.resource('phase');
   const match = world.resource('match');
   const input = world.resource('input');

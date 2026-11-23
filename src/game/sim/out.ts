@@ -1,4 +1,4 @@
-import { EcsWorld } from '../../ecs/core';
+import type { World } from '../ecs';
 import { sfx } from '../audio';
 import { TEAMS } from '../constants/teams';
 import { addFloater } from '../effects/floaters';
@@ -9,7 +9,7 @@ import { reenterPlayer } from '../spawn/formation';
 import type { TeamId } from '../types';
 import { dropBall } from './throwing';
 
-export function eliminate(world: EcsWorld, player: PlayerView, cause: 'hit' | 'caught'): void {
+export function eliminate(world: World, player: PlayerView, cause: 'hit' | 'caught'): void {
   if (!player.condition.alive) return;
   const clock = world.resource('clock');
   const queues = world.resource('queues');
@@ -45,7 +45,7 @@ export function eliminate(world: EcsWorld, player: PlayerView, cause: 'hit' | 'c
 }
 
 /** Rule 25: re-entry from the queue, over the back line. */
-export function reenter(world: EcsWorld, team: TeamId): void {
+export function reenter(world: World, team: TeamId): void {
   const queue = world.resource('queues')[team];
   const entity = queue.shift();
   if (entity === undefined) return;
@@ -66,7 +66,7 @@ export function reenter(world: EcsWorld, team: TeamId): void {
 }
 
 /** Rule 29.3.2: simultaneous all-out voids the set in the Foam format. */
-export function checkSetEnd(world: EcsWorld): void {
+export function checkSetEnd(world: World): void {
   const set = world.resource('set');
   if (set.resolved) return;
 
@@ -81,7 +81,7 @@ export function checkSetEnd(world: EcsWorld): void {
   resetShotClock(world);
 }
 
-export function countAlive(world: EcsWorld, team: TeamId): number {
+export function countAlive(world: World, team: TeamId): number {
   let alive = 0;
   for (const player of players(world)) {
     if (player.condition.alive && player.tag.team === team) alive += 1;

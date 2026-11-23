@@ -1,10 +1,10 @@
-import { EcsWorld } from '../../ecs/core';
+import type { World } from '../ecs';
 import { sfx } from '../audio';
 import { rand } from '../math';
 import type { PlayerView } from '../queries';
 import { confetti } from './particles';
 
-export function onDash(world: EcsWorld, view: PlayerView): void {
+export function onDash(world: World, view: PlayerView): void {
   sfx.dash();
   for (let i = 0; i < 7; i++) {
     const entity = world.spawn();
@@ -29,13 +29,13 @@ export function onDash(world: EcsWorld, view: PlayerView): void {
   }
 }
 
-export function punch(world: EcsWorld): void {
+export function punch(world: World): void {
   const feedback = world.resource('feedback');
   feedback.shake = Math.max(feedback.shake, 11);
   feedback.flash = Math.max(feedback.flash, 0.26);
   feedback.slowmo = 0.3;
 }
 
-export function celebrate(world: EcsWorld, winner: 'blue' | 'red'): void {
+export function celebrate(world: World, winner: 'blue' | 'red'): void {
   if (winner === 'blue') confetti(world, 110);
 }

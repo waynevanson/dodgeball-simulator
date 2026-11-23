@@ -1,4 +1,4 @@
-import { EcsWorld } from '../../ecs/core';
+import type { World } from '../ecs';
 import { PHYS } from '../constants/physics';
 import { TEAMS } from '../constants/teams';
 import { TAU, clamp } from '../math';
@@ -6,7 +6,7 @@ import { players } from '../queries';
 import { FONT } from './style';
 import { drawSpectacles } from './style';
 
-export function drawPlayers(ctx: CanvasRenderingContext2D, world: EcsWorld, time: number): void {
+export function drawPlayers(ctx: CanvasRenderingContext2D, world: World, time: number): void {
   for (const view of players(world)) {
     const { transform: p, tag, condition, action, cooldowns } = view;
     if (!condition.alive) continue;
@@ -148,7 +148,7 @@ export function drawPlayers(ctx: CanvasRenderingContext2D, world: EcsWorld, time
   }
 }
 
-export function drawEliminated(ctx: CanvasRenderingContext2D, world: EcsWorld): void {
+export function drawEliminated(ctx: CanvasRenderingContext2D, world: World): void {
   const clock = world.resource('clock');
   for (const view of players(world)) {
     const { condition, tag } = view;

@@ -1,4 +1,4 @@
-import { EcsWorld } from '../../ecs/core';
+import type { World } from '../ecs';
 import type { ParticleType } from '../components';
 import { TAU, pick, rand } from '../math';
 
@@ -14,7 +14,7 @@ export const MAX_FLOATERS = 30;
  */
 
 export function burst(
-  world: EcsWorld,
+  world: World,
   x: number,
   y: number,
   color: string,
@@ -47,7 +47,7 @@ export function burst(
   }
 }
 
-export function ring(world: EcsWorld, x: number, y: number, color: string, size = 26): void {
+export function ring(world: World, x: number, y: number, color: string, size = 26): void {
   const entity = world.spawn();
   world.add(entity, 'transform', { x, y, vx: 0, vy: 0, radius: 0, facing: 0 });
   world.add(entity, 'particle', {
@@ -62,7 +62,7 @@ export function ring(world: EcsWorld, x: number, y: number, color: string, size 
   });
 }
 
-export function confetti(world: EcsWorld, count = 80): void {
+export function confetti(world: World, count = 80): void {
   for (let i = 0; i < count; i++) {
     const entity = world.spawn();
     world.add(entity, 'transform', {

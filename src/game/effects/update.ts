@@ -1,8 +1,8 @@
-import { EcsWorld } from '../../ecs/core';
+import type { World } from '../ecs';
 import { COURT } from '../constants';
 import { MAX_FLOATERS, MAX_PARTICLES } from './particles';
 
-export function updateEffects(world: EcsWorld, dt: number): void {
+export function updateEffects(world: World, dt: number): void {
   const particles = world.query('particle');
   for (const entity of particles) {
     const transform = world.get(entity, 'transform')!;

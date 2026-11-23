@@ -1,11 +1,11 @@
-import { EcsWorld } from '../../ecs/core';
+import type { World } from '../ecs';
 import { SHOT_CLOCK } from '../constants/rules';
 import { setupFormation } from './formation';
 import { applyDifficulty } from './match';
 
 // ---------------------------------------------------------------- set resets
 
-export function startSet(world: EcsWorld): void {
+export function startSet(world: World): void {
   const set = world.resource('set');
   const shot = world.resource('shot');
   const queues = world.resource('queues');
@@ -37,7 +37,7 @@ export function startSet(world: EcsWorld): void {
   applyDifficulty(world);
 }
 
-export function toMenu(world: EcsWorld): void {
+export function toMenu(world: World): void {
   const set = world.resource('set');
   const shot = world.resource('shot');
   const queues = world.resource('queues');

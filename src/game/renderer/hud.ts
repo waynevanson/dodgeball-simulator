@@ -1,4 +1,4 @@
-import { EcsWorld } from '../../ecs/core';
+import type { World } from '../ecs';
 import { WINS_NEEDED } from '../constants/rules';
 import { TEAMS } from '../constants/teams';
 import { COURT, VIEW_W } from '../constants/view';
@@ -20,7 +20,7 @@ export const formatClock = (seconds: number): string => {
 
 export function drawHud(
   ctx: CanvasRenderingContext2D,
-  world: EcsWorld,
+  world: World,
   hud: Hud,
   input: Input,
   time: number,

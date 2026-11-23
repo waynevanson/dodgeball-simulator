@@ -1,4 +1,4 @@
-import { EcsWorld } from '../../ecs/core';
+import type { World } from '../ecs';
 import type { DifficultyId, Phase, Score, TeamId } from '../types';
 
 /**
@@ -56,7 +56,7 @@ export interface FlowQueue {
 }
 
 export interface FlowContext {
-  readonly world: EcsWorld;
+  readonly world: World;
   readonly phase: PhaseState;
   readonly match: MatchState;
 }

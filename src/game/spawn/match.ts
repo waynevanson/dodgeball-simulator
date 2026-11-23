@@ -1,4 +1,4 @@
-import { EcsWorld } from '../../ecs/core';
+import type { World } from '../ecs';
 import { DIFFICULTIES } from '../constants/difficulty';
 import { BALL_RADIUS, PLAYER_RADIUS } from '../constants/pitch';
 import { BLUE_LINEUP, CUSTOM_SLOT, DEFAULT_CUSTOM_NAME, PLAYER_NAME_MAX, ROSTER_DATA } from '../constants/roster';
@@ -18,7 +18,7 @@ export const ZERO_INTENT: Intent = {
 
 // ------------------------------------------------------------------- spawning
 
-export function spawnMatch(world: EcsWorld): void {
+export function spawnMatch(world: World): void {
   world.setResource('clock', { sim: 0 });
   world.setResource('feedback', { shake: 0, flash: 0, slowmo: 0 });
   world.setResource('set', {
@@ -149,7 +149,7 @@ export function spawnMatch(world: EcsWorld): void {
  * Choose which blue player the human controls and apply a custom sixth name.
  * Blank/whitespace custom names fall back to Crispy.
  */
-export function setLineup(world: EcsWorld, humanSlot: number, customName: string): void {
+export function setLineup(world: World, humanSlot: number, customName: string): void {
   const lineup = world.resource('lineup');
   const requested = Number.isFinite(humanSlot) ? Math.floor(humanSlot) : CUSTOM_SLOT;
   lineup.humanSlot = Math.min(BLUE_LINEUP.length - 1, Math.max(0, requested));
@@ -168,7 +168,7 @@ export function setLineup(world: EcsWorld, humanSlot: number, customName: string
 }
 
 /** Push the match difficulty onto every AI brain. */
-export function applyDifficulty(world: EcsWorld): void {
+export function applyDifficulty(world: World): void {
   const difficulty = DIFFICULTIES[world.resource('match').difficulty];
   for (const entity of world.query('player')) {
     const brain = world.get(entity, 'brain');

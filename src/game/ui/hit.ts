@@ -1,4 +1,4 @@
-import { EcsWorld } from '../../ecs/core';
+import type { World } from '../ecs';
 import { VIEW_H, VIEW_W } from '../constants/view';
 import { centered, menuLayout, pauseLayout, resultsLayout, rulesLayout } from './layout';
 import type { Hotspot, Rect } from './layout';
@@ -9,7 +9,7 @@ export function isPortrait(): boolean {
   return typeof window !== 'undefined' && window.innerHeight > window.innerWidth;
 }
 
-export function showingControls(world: EcsWorld, ui: UiState): boolean {
+export function showingControls(world: World, ui: UiState): boolean {
   const phase = world.resource('phase').id;
   return (
     world.resource('input').usingTouch &&
@@ -18,7 +18,7 @@ export function showingControls(world: EcsWorld, ui: UiState): boolean {
   );
 }
 
-export function showingTopBar(world: EcsWorld, ui: UiState): boolean {
+export function showingTopBar(world: World, ui: UiState): boolean {
   const phase = world.resource('phase').id;
   return ui.screen === null && (phase === 'playing' || phase === 'countdown');
 }
@@ -66,7 +66,7 @@ export function rotateLayout(): { panel: Rect; play: Rect } {
   };
 }
 
-export function hotspots(world: EcsWorld, ui: UiState): Hotspot[] {
+export function hotspots(world: World, ui: UiState): Hotspot[] {
   if (world.resource('input').usingTouch && isPortrait() && !ui.portraitOk) {
     return [{ id: 'portrait-ok', rect: rotateLayout().play }];
   }
@@ -112,7 +112,7 @@ export function hotspots(world: EcsWorld, ui: UiState): Hotspot[] {
   return found;
 }
 
-export function hit(world: EcsWorld, ui: UiState, x: number, y: number): Hotspot | null {
+export function hit(world: World, ui: UiState, x: number, y: number): Hotspot | null {
   for (const spot of hotspots(world, ui)) {
     const { rect } = spot;
     if (x >= rect.x && x <= rect.x + rect.w && y >= rect.y && y <= rect.y + rect.h) return spot;

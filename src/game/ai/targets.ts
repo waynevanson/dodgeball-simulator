@@ -1,4 +1,4 @@
-import { EcsWorld } from '../../ecs/core';
+import type { World } from '../ecs';
 import { dist, rand } from '../math';
 import { carriedBall } from '../queries';
 import type { PlayerView } from '../queries';
@@ -14,7 +14,7 @@ export const baseIntent = (aim: number): Intent => ({
   catch: false,
 });
 
-export function chooseTarget(world: EcsWorld, view: PlayerView, foes: PlayerView[]): PlayerView {
+export function chooseTarget(world: World, view: PlayerView, foes: PlayerView[]): PlayerView {
   let best = foes[0];
   let bestScore = Infinity;
   for (const foe of foes) {

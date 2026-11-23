@@ -1,4 +1,4 @@
-import { EcsWorld } from '../../ecs/core';
+import type { World } from '../ecs';
 import { BLUE_LINEUP, CUSTOM_SLOT, DEFAULT_CUSTOM_NAME } from '../constants/roster';
 import { VIEW_W } from '../constants/view';
 import { roundRect } from '../math';
@@ -27,7 +27,7 @@ export function drawBrand(ctx: CanvasRenderingContext2D): void {
   ctx.fillText('S I M U L A T O R', cx, 150);
 }
 
-export function drawMenu(ctx: CanvasRenderingContext2D, world: EcsWorld, ui: UiState): void {
+export function drawMenu(ctx: CanvasRenderingContext2D, world: World, ui: UiState): void {
   const lineup = world.resource('lineup');
   const match = world.resource('match');
   const input = world.resource('input');

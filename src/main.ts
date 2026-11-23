@@ -1,7 +1,6 @@
 import './styles/global.css';
-import './game/components';
-import type { System } from './ecs/core';
-import { EcsWorld } from './ecs/core';
+import type { System } from './game/ecs';
+import { createWorld } from './game/ecs';
 import { sfx } from './game/audio';
 import { CUSTOM_SLOT, DIFFICULTIES, PLAYER_NAME_MAX, ROSTER } from './game/constants';
 import { Input } from './game/input';
@@ -100,7 +99,7 @@ const context2d = canvas.getContext('2d', { alpha: false });
 if (!context2d) throw new Error('2D canvas context unavailable');
 const ctx: CanvasRenderingContext2D = context2d;
 
-const ecs = new EcsWorld();
+const ecs = createWorld();
 const input = new Input(canvas);
 
 spawnMatch(ecs);
