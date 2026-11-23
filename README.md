@@ -162,7 +162,10 @@ rectangles that were just drawn.
 ```
 src/
 ├── main.ts                     # canvas, input, saved settings, rAF wiring
-├── ecs/core.ts                 # resources, entities, components, startup + update schedules
+├── ecs/core.ts                 # entities, components, resources, startup + update schedules
+├── ecs/component-store.ts      # one component type: sparse set + dense value column
+├── ecs/sparse-set.ts           # dense entity indices, sparse index -> dense slot
+├── ecs/entity-allocator.ts     # recycled indices with generation-tagged handles
 ├── game/
 │   ├── components.ts           # barrel: shared, player, ball, effects, world, registry
 │   ├── constants.ts            # barrel: view, pitch, rules, physics, teams, roster, difficulty

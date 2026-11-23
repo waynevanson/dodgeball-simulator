@@ -1,5 +1,8 @@
 export type { Entity } from './entity-allocator';
+import { EntityAllocator, entityIndex } from './entity-allocator';
 import type { Entity } from './entity-allocator';
+import { ComponentStore } from './component-store';
+import { SparseSet } from './sparse-set';
 
 export type ComponentKey<C> = Extract<keyof C, string>;
 
@@ -17,14 +20,27 @@ export interface System<C extends object, R extends object> {
   run(context: TickContext<C, R>): void;
 }
 
+/**
+ * Entities are generation-tagged handles over a recycled index space: the
+ * `EntityAllocator` reissues freed indices and bumps a generation, so a stale
+ * handle never aliases the entity that replaced it.
+ *
+ * Dense indices make array storage viable, so everything keys on the index:
+ * live indices live in a `SparseSet`, and each component type is a
+ * `ComponentStore` — a sparse set paired with a dense value column. Queries
+ * pick the smallest matching column and walk its packed array, so membership
+ * is an array read instead of a hash lookup. The public API speaks handles and
+ * validates them against the allocator, so stale and double-despawned handles
+ * are rejected even after their index is reused.
+ */
 export class EcsWorld<C extends object, R extends object> {
-  readonly #entities = new Set<Entity>();
-  readonly #stores = new Map<ComponentKey<C>, Map<Entity, unknown>>();
+  readonly #entities = new EntityAllocator();
+  readonly #live = new SparseSet();
+  readonly #stores = new Map<ComponentKey<C>, ComponentStore<unknown>>();
   readonly #resources = new Map<ResourceKey<R>, unknown>();
   readonly #startupSystems: Array<System<C, R>> = [];
   readonly #updateSystems: Array<System<C, R>> = [];
   #started = false;
-  #nextEntity: Entity = 1;
   #ticks = 0;
   #time = 0;
 
@@ -46,55 +62,77 @@ export class EcsWorld<C extends object, R extends object> {
   }
 
   spawn(): Entity {
-    const entity = this.#nextEntity++;
-    this.#entities.add(entity);
+    const entity = this.#entities.spawn();
+    this.#live.add(entityIndex(entity));
     return entity;
   }
 
   despawn(entity: Entity): void {
-    this.#entities.delete(entity);
-    for (const store of this.#stores.values()) store.delete(entity);
+    if (!this.#entities.isAlive(entity)) return;
+
+    const index = entityIndex(entity);
+    for (const store of this.#stores.values()) store.delete(index);
+    this.#live.remove(index);
+    this.#entities.despawn(entity);
   }
 
   isAlive(entity: Entity): boolean {
-    return this.#entities.has(entity);
+    return this.#entities.isAlive(entity);
   }
 
   get entityCount(): number {
-    return this.#entities.size;
+    return this.#live.size;
   }
 
   add<K extends ComponentKey<C>>(entity: Entity, key: K, value: C[K]): void {
-    this.#store(key).set(entity, value);
+    const index = this.#indexOf(entity);
+    if (index < 0) return;
+    this.#store(key).set(index, value);
   }
 
   remove<K extends ComponentKey<C>>(entity: Entity, key: K): void {
-    this.#store(key).delete(entity);
+    const index = this.#indexOf(entity);
+    if (index < 0) return;
+    this.#stores.get(key)?.delete(index);
   }
 
   has<K extends ComponentKey<C>>(entity: Entity, key: K): boolean {
-    return this.#store(key).has(entity);
+    const index = this.#indexOf(entity);
+    return index >= 0 && (this.#stores.get(key)?.has(index) ?? false);
   }
 
   get<K extends ComponentKey<C>>(entity: Entity, key: K): C[K] | undefined {
-    return this.#store(key).get(entity) as C[K] | undefined;
+    const index = this.#indexOf(entity);
+    if (index < 0) return undefined;
+    return this.#stores.get(key)?.get(index) as C[K] | undefined;
   }
 
+  /**
+   * Every live entity carrying all `keys`, ordered by the smallest matching
+   * column's dense order, so players and balls keep spawn order. Fresh array:
+   * despawning while iterating is safe.
+   */
   query<K extends ComponentKey<C>>(...keys: K[]): Entity[] {
-    if (keys.length === 0) return [...this.#entities];
+    if (keys.length === 0) return this.#handles(this.#live.entities());
 
-    let smallest: Map<Entity, unknown> | null = null;
+    const columns: Array<ComponentStore<unknown>> = [];
     for (const key of keys) {
-      const store = this.#store(key);
-      if (smallest === null || store.size < smallest.size) smallest = store;
+      const column = this.#stores.get(key);
+      if (column === undefined || column.size === 0) return [];
+      columns.push(column);
     }
-    if (smallest === null) return [];
+
+    let smallest = columns[0];
+    for (const column of columns) {
+      if (column.size < smallest.size) smallest = column;
+    }
 
     const found: Entity[] = [];
-    for (const entity of smallest.keys()) {
-      if (this.#entities.has(entity) && keys.every((key) => this.#store(key).has(entity))) {
-        found.push(entity);
+    search: for (const index of smallest.entities()) {
+      for (const column of columns) {
+        if (!column.has(index)) continue search;
       }
+      found.push(this.#entities.entityAt(index));
     }
     return found;
   }
@@ -145,10 +183,21 @@ export class EcsWorld<C extends object, R extends object> {
     for (const system of this.#updateSystems) system.run(context);
   }
 
-  #store<K extends ComponentKey<C>>(key: K): Map<Entity, unknown> {
+  /** Live entity index for a handle, or -1 when the handle is stale or dead. */
+  #indexOf(entity: Entity): number {
+    return this.#entities.isAlive(entity) ? entityIndex(entity) : -1;
+  }
+
+  #handles(indices: Int32Array): Entity[] {
+    const entities: Entity[] = new Array(indices.length);
+    for (let i = 0; i < indices.length; i++) entities[i] = this.#entities.entityAt(indices[i]);
+    return entities;
+  }
+
+  #store<K extends ComponentKey<C>>(key: K): ComponentStore<unknown> {
     let store = this.#stores.get(key);
-    if (!store) {
-      store = new Map<Entity, unknown>();
+    if (store === undefined) {
+      store = new ComponentStore<unknown>();
       this.#stores.set(key, store);
     }
     return store;

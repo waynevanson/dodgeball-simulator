@@ -55,6 +55,11 @@ export class EntityAllocator {
     return true;
   }
 
+  /** The handle a live entity at `index` currently carries. */
+  entityAt(index: number): Entity {
+    return packEntity(index, this.#generation[index]);
+  }
+
   isAlive(entity: Entity): boolean {
     if (!Number.isInteger(entity) || entity < 0) return false;
 
