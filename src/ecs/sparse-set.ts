@@ -1,9 +1,8 @@
-import { ABSENT, PagedSparseArray } from './paged-sparse-array';
-
-const MAX_ENTITY_ID = 0x7fffffff;
+const ABSENT = 0;
+const MAX_ID = 0x7fffffff;
 
 export class SparseSet {
-  #sparse = new PagedSparseArray();
+  #sparse: Int32Array = new Int32Array(0);
   #dense: Int32Array = new Int32Array(0);
   #count = 0;
 
@@ -16,58 +15,69 @@ export class SparseSet {
   }
 
   get sparseBytes(): number {
-    return this.#sparse.bytes;
+    return this.#sparse.length * Int32Array.BYTES_PER_ELEMENT;
   }
 
   entities(): Int32Array {
     return this.#dense.subarray(0, this.#count);
   }
 
-  has(entity: number): boolean {
-    return this.indexOf(entity) >= 0;
+  reserve(id: number): void {
+    if (id >= this.#sparse.length) this.#growSparse(id);
   }
 
-  indexOf(entity: number): number {
-    const slot = this.#sparse.get(entity);
+  has(id: number): boolean {
+    return this.indexOf(id) >= 0;
+  }
+
+  indexOf(id: number): number {
+    const slot = id < this.#sparse.length ? this.#sparse[id] : ABSENT;
     return slot === ABSENT ? -1 : slot - 1;
   }
 
-  add(entity: number): number {
-    if (!Number.isInteger(entity) || entity < 0 || entity > MAX_ENTITY_ID) {
-      throw new RangeError(`SparseSet.add: invalid entity id ${entity}`);
+  add(id: number): number {
+    if (!Number.isInteger(id) || id < 0 || id > MAX_ID) {
+      throw new RangeError(`SparseSet.add: invalid id ${id}`);
     }
 
-    const existing = this.indexOf(entity);
+    const existing = this.indexOf(id);
     if (existing >= 0) return existing;
 
-    if (this.#count === this.#dense.length) this.#grow();
+    if (id >= this.#sparse.length) this.#growSparse(id);
+    if (this.#count === this.#dense.length) this.#growDense();
 
     const index = this.#count++;
-    this.#dense[index] = entity;
-    this.#sparse.set(entity, index + 1);
+    this.#dense[index] = id;
+    this.#sparse[id] = index + 1;
     return index;
   }
 
-  remove(entity: number): boolean {
-    const index = this.indexOf(entity);
+  remove(id: number): boolean {
+    const index = this.indexOf(id);
     if (index < 0) return false;
 
     const last = --this.#count;
     if (index !== last) {
       const moved = this.#dense[last];
       this.#dense[index] = moved;
-      this.#sparse.set(moved, index + 1);
+      this.#sparse[moved] = index + 1;
     }
-    this.#sparse.set(entity, ABSENT);
+    this.#sparse[id] = ABSENT;
     return true;
   }
 
   clear(): void {
-    this.#sparse.clear();
+    for (let i = 0; i < this.#count; i++) this.#sparse[this.#dense[i]] = ABSENT;
     this.#count = 0;
   }
 
-  #grow(): void {
+  #growSparse(id: number): void {
+    const next = new Int32Array(Math.max(id + 1, this.#sparse.length * 2, 64));
+    next.set(this.#sparse);
+    this.#sparse = next;
+  }
+
+  #growDense(): void {
     const next = new Int32Array(Math.max(8, this.#dense.length * 2));
     next.set(this.#dense);
     this.#dense = next;
