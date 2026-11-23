@@ -109,9 +109,9 @@ in the HUD so the state of the set is always readable.
 ## Architecture
 
 The game is an ECS driving a single 2D canvas. Global state is a **resource**,
-per-instance state is a **component**, and an ordered **system** schedule
-advances everything one tick at a time. There is no engine, no UI framework and
-no runtime dependency beyond Vite + TypeScript.
+per-instance state is a **component**, and systems run in two ordered schedules:
+**startup** once before the first frame, and **update** every tick. There is no
+engine, no UI framework and no runtime dependency beyond Vite + TypeScript.
 
 Match flow is state, not control flow. A `phase` resource holds the current
 phase, a `match` resource holds the score, and a transition table names every
@@ -127,7 +127,19 @@ legal move between them:
 ```
 
 Entry actions belong to the definition of the state: entering `countdown`
-resets the set, entering `menu` tears it down. A frame is one ordered pass:
+resets the set, entering `menu` tears it down.
+
+`main` builds the canvas and input, loads saved settings, and starts the loop.
+Two ordered schedules assemble and run the world:
+
+**Startup** runs once, before the first frame:
+
+| system | job |
+| --- | --- |
+| `game-startup` | spawn the match, its resources, the opening phase/flow and saved settings |
+| `presentation-startup` | attach the canvas, input and UI state |
+
+**Update** runs every tick, in order:
 
 | system | job |
 | --- | --- |
@@ -149,8 +161,8 @@ rectangles that were just drawn.
 
 ```
 src/
-├── main.ts                     # boot, resources, system schedule, rAF loop
-├── ecs/core.ts                 # resources, entities, components, ordered schedule
+├── main.ts                     # canvas, input, saved settings, rAF wiring
+├── ecs/core.ts                 # resources, entities, components, startup + update schedules
 ├── game/
 │   ├── components.ts           # barrel: shared, player, ball, effects, world, registry
 │   ├── constants.ts            # barrel: view, pitch, rules, physics, teams, roster, difficulty
@@ -159,7 +171,7 @@ src/
 │   ├── sim.ts                  # barrel: intents, player, ball, throwing, contacts, out, rules, loop
 │   ├── ai.ts                   # barrel: threats, targets, intent
 │   ├── effects.ts              # barrel: particles, floaters, glasses, feedback, update
-│   ├── systems.ts              # barrel: simulation, phase-effects, countdown-audio, hud, render, input-frame
+│   ├── systems.ts              # barrel: startup, simulation, phase-effects, countdown-audio, hud, render, input-frame
 │   ├── renderer.ts             # barrel: scene, court, queues, balls, players, fx, hud, banners, cursor
 │   ├── ui.ts                   # barrel: state, layout, hit, shapes, actions, flow, menu, dialogs, rules, controls
 │   ├── audio.ts                # barrel: synth, voices, instance

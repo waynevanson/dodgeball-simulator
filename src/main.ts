@@ -5,29 +5,25 @@ import { sfx } from './game/audio';
 import { CUSTOM_SLOT, DIFFICULTIES, PLAYER_NAME_MAX, ROSTER } from './game/constants';
 import { Input } from './game/input';
 import { flowSystem, send } from './game/match';
-import { applyDifficulty, setLineup, spawnMatch } from './game/spawn';
 import {
   countdownAudioSystem,
+  gameStartupSystem,
   hudSystem,
   inputFrameSystem,
   phaseEffectsSystem,
+  presentationStartupSystem,
   renderSystem,
   resizeCanvas,
   simulationSystem,
 } from './game/systems';
-import { createUi, uiSystem } from './game/ui';
-import type { DifficultyId } from './game/types';
+import type { StartupSettings } from './game/systems';
+import { uiSystem } from './game/ui';
 
 // --------------------------------------------------------------------- settings
 
 const SETTINGS_KEY = 'dodgeball.settings';
 
-interface Settings {
-  difficulty: DifficultyId;
-  muted: boolean;
-  playerSlot: number;
-  playerName: string;
-}
+type Settings = StartupSettings;
 
 const DEFAULT_SETTINGS: Settings = {
   difficulty: 'pro',
@@ -102,26 +98,9 @@ const ctx: CanvasRenderingContext2D = context2d;
 const ecs = createWorld();
 const input = new Input(canvas);
 
-spawnMatch(ecs);
-
-ecs.setResource('input', input);
-ecs.setResource('view', { canvas, ctx });
-ecs.setResource('ui', createUi());
-ecs.setResource('phase', { id: 'menu', elapsed: 0, resumeFrom: null });
-ecs.setResource('match', {
-  difficulty: settings.difficulty,
-  score: { blue: 0, red: 0 },
-  set: 1,
-  lastSetWinner: null,
-  matchWinner: null,
-});
-ecs.setResource('flow', { pending: [] });
-
-sfx.muted = settings.muted;
-setLineup(ecs, settings.playerSlot, settings.playerName);
-applyDifficulty(ecs);
-
 ecs
+  .addStartup(gameStartupSystem(settings))
+  .addStartup(presentationStartupSystem(canvas, ctx, input))
   .addSystem(uiSystem())
   .addSystem(flowSystem())
   .addSystem(phaseEffectsSystem())
@@ -131,6 +110,8 @@ ecs
   .addSystem(renderSystem())
   .addSystem(settingsSystem())
   .addSystem(inputFrameSystem());
+
+ecs.start();
 
 const currentPhase = () => ecs.resource('phase').id;
 

@@ -1,5 +1,4 @@
 export type { Entity } from './entity-allocator';
-
 import type { Entity } from './entity-allocator';
 
 export type ComponentKey<C> = Extract<keyof C, string>;
@@ -22,7 +21,9 @@ export class EcsWorld<C extends object, R extends object> {
   private readonly entities = new Set<Entity>();
   private readonly stores = new Map<ComponentKey<C>, Map<Entity, unknown>>();
   private readonly resources = new Map<ResourceKey<R>, unknown>();
-  private readonly systems: Array<System<C, R>> = [];
+  private readonly startupSystems: Array<System<C, R>> = [];
+  private readonly updateSystems: Array<System<C, R>> = [];
+  private started = false;
   private nextEntity: Entity = 1;
   private ticks = 0;
   private time = 0;
@@ -98,16 +99,41 @@ export class EcsWorld<C extends object, R extends object> {
     return found;
   }
 
+  /** Register a per-frame system. Update systems run in registration order. */
   addSystem(system: System<C, R>): this {
-    this.systems.push(system);
+    this.updateSystems.push(system);
+    return this;
+  }
+
+  /** Register a one-shot system. Startup systems run once, before the first update. */
+  addStartup(system: System<C, R>): this {
+    this.startupSystems.push(system);
     return this;
   }
 
   get systemNames(): readonly string[] {
-    return this.systems.map((system) => system.name);
+    return this.updateSystems.map((system) => system.name);
+  }
+
+  get startupSystemNames(): readonly string[] {
+    return this.startupSystems.map((system) => system.name);
+  }
+
+  /** Run the startup schedule once. `tick` calls this before the first update. */
+  start(): void {
+    if (this.started) return;
+    this.started = true;
+    const context: TickContext<C, R> = {
+      world: this,
+      dt: 0,
+      now: this.time,
+      tick: this.ticks,
+    };
+    for (const system of this.startupSystems) system.run(context);
   }
 
   tick(dt: number): void {
+    this.start();
     this.ticks += 1;
     this.time += dt;
     const context: TickContext<C, R> = {
@@ -116,7 +142,7 @@ export class EcsWorld<C extends object, R extends object> {
       now: this.time,
       tick: this.ticks,
     };
-    for (const system of this.systems) system.run(context);
+    for (const system of this.updateSystems) system.run(context);
   }
 
   private store<K extends ComponentKey<C>>(key: K): Map<Entity, unknown> {

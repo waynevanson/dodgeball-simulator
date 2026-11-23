@@ -6,13 +6,14 @@ import { simulate } from '../sim/loop';
 import { enterSuddenDeath, updateArming, updateRush, updateShotClock } from '../sim/rules';
 
 /**
- * The frame, as an ordered schedule:
+ * The update schedule, in order:
  *
  *   ui-input -> match-flow -> phase-effects -> simulation -> countdown-audio
  *            -> hud -> render -> input-frame
  *
- * Flow owns match state; phase-effects maps a phase change onto the canvas UI
- * and the audio; simulation advances the world; the rest reads and draws it.
+ * Startup has already built the world; flow owns match state; phase-effects
+ * maps a phase change onto the canvas UI and the audio; simulation advances the
+ * world; the rest reads and draws it.
  */
 
 export function simulationSystem(): System {
