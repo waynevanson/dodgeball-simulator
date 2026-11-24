@@ -106,11 +106,15 @@ pub struct PhaseState {
     pub id: Phase,
     pub elapsed: f64,
     pub resume_from: Option<Phase>,
+    /// Last count-in second already announced. Kept so the beep is emitted on
+    /// the boundary where the clock is advanced, exactly once, instead of the
+    /// presentation re-deriving the edge from `elapsed`.
+    pub beep: i32,
 }
 
 impl Default for PhaseState {
     fn default() -> Self {
-        Self { id: Phase::Menu, elapsed: 0.0, resume_from: None }
+        Self { id: Phase::Menu, elapsed: 0.0, resume_from: None, beep: 99 }
     }
 }
 

@@ -1,4 +1,4 @@
-use crate::constants::{COUNTDOWN_MS, SET_BREAK_MS, WINS_NEEDED};
+use crate::constants::{COUNTDOWN_MS, COUNTDOWN_SECONDS, SET_BREAK_MS, WINS_NEEDED};
 use crate::game::effects::{celebrate, punch};
 use crate::game::spawn::{start_set, to_menu};
 use crate::types::{Phase, SfxEvent, Trigger};
@@ -34,6 +34,14 @@ fn poll(world: &mut World, dt: f64) {
     match world.phase.id {
         Phase::Countdown => {
             world.phase.elapsed += dt;
+            // Count-in: one beep per whole second left on the clock. The second
+            // boundary is crossed here, so the cue is emitted here; nobody else
+            // ever has to guess whether a beep has already played.
+            let secs = (COUNTDOWN_SECONDS - world.phase.elapsed).ceil() as i32;
+            if secs != world.phase.beep && (1..=3).contains(&secs) {
+                world.phase.beep = secs;
+                world.sfx(SfxEvent::Beep(secs == 1));
+            }
             if world.phase.elapsed * 1000.0 >= COUNTDOWN_MS {
                 world.pending.push(Trigger::CountdownDone);
             }
@@ -144,7 +152,10 @@ fn enter_phase(world: &mut World, phase: Phase) {
             world.match_state.last_set_winner = None;
             world.match_state.match_winner = None;
         }
-        Phase::Countdown => start_set(world),
+        Phase::Countdown => {
+            start_set(world);
+            world.phase.beep = 99;
+        }
         _ => {}
     }
 

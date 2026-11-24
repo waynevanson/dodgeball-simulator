@@ -119,3 +119,34 @@ fn shot_clock_forfeits_the_held_balls() {
 
     assert!(world.carried_ball(player).is_none(), "possession was forfeited");
 }
+
+/// The count-in is a rule, so it is observable from the simulation alone:
+/// three beeps, one per second, the last one flagged, never repeated.
+#[test]
+fn countdown_announces_each_second_exactly_once() {
+    use dodgeball_sim::constants::COUNTDOWN_SECONDS;
+    use dodgeball_sim::types::SfxEvent;
+
+    let mut world = World::new(1, DifficultyId::Pro, 5, "Tester");
+    flow::send(&mut world, Trigger::Start);
+
+    let mut beeps: Vec<(bool, f64)> = Vec::new();
+    let frames = (COUNTDOWN_SECONDS / DT).ceil() as usize + 4;
+    for _ in 0..frames {
+        game::tick(&mut world, DT, &InputFrame::default());
+        for event in std::mem::take(&mut world.events) {
+            if let SfxEvent::Beep(last) = event {
+                beeps.push((last, world.phase.elapsed));
+            }
+        }
+    }
+
+    let flags: Vec<bool> = beeps.iter().map(|(last, _)| *last).collect();
+    assert_eq!(flags, vec![false, false, true], "beeps: {beeps:?}");
+
+    // Ascending timestamps: no duplicates, no replays after a pause.
+    assert!(
+        beeps.windows(2).all(|pair| pair[1].1 > pair[0].1),
+        "beeps: {beeps:?}"
+    );
+}

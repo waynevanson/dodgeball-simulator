@@ -4,7 +4,6 @@ import { Bridge } from './game/bridge';
 import type { Frame } from './game/frame';
 import { toHud } from './game/frame';
 import { CUSTOM_SLOT, DIFFICULTIES, PLAYER_NAME_MAX, ROSTER } from './game/constants';
-import { COUNTDOWN_SECONDS } from './game/constants/rules';
 import { Input } from './game/input';
 import { renderFrame, resizeCanvas } from './game/systems';
 import { createUi, updateUi } from './game/ui';
@@ -81,7 +80,6 @@ sfx.muted = settings.muted;
 
 let frame: Frame = bridge.frame();
 let previousPhase: Phase = frame.phase;
-let lastCountdown = 99;
 
 function persistSettings(): void {
   settings.difficulty = frame.difficulty.id;
@@ -91,7 +89,7 @@ function persistSettings(): void {
   saveSettings();
 }
 
-/** Follow phase changes into the canvas UI and play the count-in beeps. */
+/** Follow phase changes into the canvas UI. Sound comes from the sim. */
 function present(next: Frame): void {
   if (next.phase !== previousPhase) {
     previousPhase = next.phase;
@@ -104,16 +102,6 @@ function present(next: Frame): void {
           : next.phase === 'matchover'
             ? 'results'
             : null;
-  }
-
-  if (next.phase === 'countdown') {
-    const number = Math.ceil(COUNTDOWN_SECONDS - next.phaseElapsed);
-    if (number !== lastCountdown && number >= 1 && number <= 3) {
-      lastCountdown = number;
-      sfx.beep(number === 1);
-    }
-  } else {
-    lastCountdown = 99;
   }
 }
 
