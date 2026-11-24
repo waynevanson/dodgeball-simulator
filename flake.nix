@@ -7,12 +7,16 @@
       url = "github:nix-community/fenix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    # SpacetimeDB 2.16 cannot parse the wasm emitted by binaryen 133.
+    # nixos-26.05 provides binaryen 129, which it can parse.
+    nixpkgs-binaryen.url = "github:NixOS/nixpkgs/nixos-26.05";
   };
 
   outputs =
     {
       nixpkgs,
       fenix,
+      nixpkgs-binaryen,
       ...
     }:
     let
@@ -33,6 +37,7 @@
             file = ./rust-toolchain.toml;
             sha256 = "sha256-A1abGIbOtcBSdrUMhDGrER3pRM1hQP4fp9gh3Y4PKc8=";
           };
+          binaryen129 = (import nixpkgs-binaryen { inherit system; }).binaryen;
         in
         {
           default = pkgs.mkShell {
@@ -45,6 +50,7 @@
               # unversioned attribute moves ahead with nixpkgs and wasm-bindgen
               # refuses to run when the CLI and crate schema differ.
               pkgs.wasm-bindgen-cli_0_2_121
+              binaryen129
               # SpacetimeDB: install the CLI matching `spacetimedb` in Cargo.toml.
               # nixpkgs currently ships 2.15.0, while the module and npm client
               # are pinned to 2.16.1. Use the upstream installer or publish with

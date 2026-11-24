@@ -256,8 +256,9 @@ it is refreshed every time the crate is built.
 
 Online play is server-authoritative. The Rust simulation runs inside a
 SpacetimeDB module (`crates/server`) at 20 ticks per second; browsers send their
-latest input and render snapshots received from the database. The offline WASM
-build remains the default when no SpacetimeDB URI is configured.
+latest input and render snapshots received from the database. Local development
+is configured for SpacetimeDB in `apps/web/.env.development`; production
+builds without a SpacetimeDB URI still use the browser-only WASM simulation.
 
 ### What the module does
 
@@ -282,32 +283,36 @@ curl -sSf https://install.spacetimedb.com | sh
 spacetime --version
 ```
 
-Then:
+Then, from two terminals:
 
 ```bash
 # Terminal 1: local SpacetimeDB server
 spacetime start
 
-# Terminal 2: build, publish and generate client bindings
-pnpm module:build
-pnpm module:publish
-pnpm module:generate
-
-# Terminal 3: Vite with the online transport
-pnpm dev:online
+# Terminal 2: SpacetimeDB dev loop + Turbo/Vite client
+pnpm dev
 ```
 
-`pnpm module:publish` publishes to the local server as `dodgeball-simulator`.
-`pnpm module:generate` refreshes `apps/web/src/module_bindings` from the
-unoptimised module binary, so it does not depend on a particular `wasm-opt`.
-Re-run it whenever the server's tables or reducers change. During development,
-publish with `--delete-data=always` if you change the persisted `World` layout;
-the private state is a versioned blob inside `sim_state`.
+`spacetime.json` points the CLI at `crates/server`, the local server, and the
+committed bindings directory. `pnpm dev` runs `spacetime dev --yes`, which
+builds and publishes the module, regenerates bindings, and then runs the client
+through Turborepo (`pnpm dev:client`). Vite reads
+`apps/web/.env.development`, so local development always talks to the local
+SpacetimeDB instance at `ws://localhost:3000`.
 
-Open two browser windows (or two devices on the same network) and both will
-join the same arena. For another device, replace `localhost` with your machine's
-LAN address and make sure SpacetimeDB is reachable from it. The menu shows the connection state; the first player to
-press **START MATCH** starts the set. Team selection is automatic: the server
+`spacetime dev` does not start the standalone server for an existing project,
+so keep `spacetime start` running. During development, pass `-c always` (or use
+`--delete-data=always` when publishing manually) if you change the persisted
+`World` layout; the private state is a versioned blob inside `sim_state`.
+
+Use `pnpm dev:offline` when you explicitly want the browser-only WASM build.
+
+Open two browser windows and both will join the same arena. Vite binds to
+localhost by default; for another device, run the client with `--host`
+(`pnpm --filter @dodgeball/web dev -- --host`) and set
+`VITE_SPACETIME_URI=ws://<your-LAN-IP>:3000` so the device reaches SpacetimeDB.
+The menu shows the connection state; the first player to press **START MATCH**
+starts the set. Team selection is automatic: the server
 puts you on the team with fewer humans, in the first free slot.
 
 ### Maincloud
@@ -315,6 +320,7 @@ puts you on the team with fewer humans, in the first free slot.
 Publish the module once and point the static client at the database:
 
 ```bash
+pnpm module:build
 spacetime login
 spacetime publish <your-database-name> -s maincloud --bin-path target/wasm32-unknown-unknown/release/dodgeball_server.wasm
 ```
@@ -340,35 +346,45 @@ Also stop the tick when no humans are connected — the module already does this
 | `apps/web/src/game/online.ts` | SpacetimeDB transport, input throttling, interpolation |
 | `apps/web/src/game/audio/events.ts` | Shared sound-event player for offline and online |
 | `apps/web/src/game/frame.ts` | `Frame` snapshot, including owner/`isYou` |
+
 ## Development
 
 Requires:
 
 - **Node 20+** and **pnpm 10** (pinned via `packageManager`)
 - **Rust 1.97.1** (pinned in `rust-toolchain.toml`) with the `wasm32-unknown-unknown` target
-- **SpacetimeDB CLI 2.16.1** for online play (the Rust module and npm client are pinned to the same version)
+- **SpacetimeDB CLI 2.16.1** for local and online play (the Rust module and npm client are pinned to the same version)
 - **`wasm-bindgen-cli` 0.2.121**, matching the pinned `wasm-bindgen` crate
 
 ```bash
-# Option A: Nix (fenix pins stable Rust + wasm32 target + wasm-bindgen-cli)
+# Option A: Nix (Rust, wasm32 target, wasm-bindgen-cli, binaryen 129)
 nix develop
 
 # Option B: rustup
 rustup target add wasm32-unknown-unknown
 cargo install -f wasm-bindgen-cli --version 0.2.121
+# Optional: binaryen 129 for optimised SpacetimeDB modules
+# (SpacetimeDB 2.16 cannot parse binaryen 133 output).
 ```
 
 Then, in either shell:
 
 ```bash
 pnpm install
-pnpm dev        # Vite + cargo build on demand
-pnpm typecheck  # tsc --noEmit
-pnpm rust:test  # headless ECS/rules/flow tests
-pnpm build      # cargo wasm (release) + typecheck + Vite build
-pnpm preview    # serve the production build
-pnpm check      # typecheck + rust tests + wasm check
+pnpm dev         # SpacetimeDB dev loop + Turbo/Vite (requires spacetime start)
+pnpm dev:offline # browser-only WASM build
+pnpm dev:client  # only the Vite client, through Turbo (used by spacetime dev)
+pnpm typecheck   # turbo run typecheck
+pnpm rust:test   # headless ECS/rules/flow tests
+pnpm build       # turbo run build (cargo wasm + typecheck + Vite)
+pnpm preview     # serve the production build through Turbo
+pnpm check       # Turbo typecheck + rust tests + wasm check
 ```
+
+Turborepo owns task execution (`turbo.json`): `build`, `typecheck`, `preview`,
+`dev:client` and `dev:offline` go through `turbo run`. `pnpm dev` is the
+exception because SpacetimeDB owns the server-side dev loop and invokes the
+Turbo-powered `dev:client` task through `spacetime.json`.
 
 **unplugin-cargo.** The Vite plugin compiles `crates/sim/src/lib.rs` to wasm,
 runs `wasm-bindgen`, generates the glue and watches the crate's `Cargo.toml`,

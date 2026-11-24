@@ -5,3 +5,7 @@ target
 *.local
 .vite
 .direnv
+
+spacetime.local.json
+spacetime.*.local.json
+.turbo

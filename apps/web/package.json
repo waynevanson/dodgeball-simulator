@@ -6,6 +6,7 @@
   "description": "Canvas presentation, input and audio for the dodgeball simulator",
   "scripts": {
     "dev": "vite",
+    "dev:offline": "vite --mode offline",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit"

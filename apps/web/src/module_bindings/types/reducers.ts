@@ -19,3 +19,4 @@ export type LeaveParams = __Infer<typeof LeaveReducer>;
 export type SetInputParams = __Infer<typeof SetInputReducer>;
 export type SetNameParams = __Infer<typeof SetNameReducer>;
 export type StartMatchParams = __Infer<typeof StartMatchReducer>;
+
