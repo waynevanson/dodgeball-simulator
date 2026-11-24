@@ -26,7 +26,10 @@ export interface PlayerTagView {
   number: number;
   team: TeamId;
   slot: number;
+  owner: number | null;
   isHuman: boolean;
+  /** True for the local client's own player. */
+  isYou: boolean;
   glasses: boolean;
 }
 
@@ -127,6 +130,7 @@ export interface HudPlayerView {
   number: number;
   alive: boolean;
   human: boolean;
+  you: boolean;
   entering: boolean;
 }
 
@@ -158,6 +162,9 @@ export interface Frame {
   particles: ParticleView[];
   floaters: FloaterView[];
   glasses: GlassesView[];
+  /** Set by the online transport; absent in the local wasm build. */
+  online?: boolean;
+  connection?: 'connecting' | 'online' | 'offline' | 'spectating' | 'error';
 }
 
 /** The HUD view model handed to the renderer; adds presentation-only fields. */

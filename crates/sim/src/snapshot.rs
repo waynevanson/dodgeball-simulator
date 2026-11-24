@@ -35,7 +35,12 @@ pub struct PlayerTagOut {
     pub number: u32,
     pub team: Team,
     pub slot: usize,
+    pub owner: Option<u64>,
     pub is_human: bool,
+    /// Presentation-only "this is the local player's character" flag. The
+    /// offline build sets it from `is_human`; the online bridge recomputes it
+    /// from the local participant's owner id.
+    pub is_you: bool,
     pub glasses: bool,
 }
 
@@ -179,6 +184,7 @@ pub struct HudPlayerOut {
     pub number: u32,
     pub alive: bool,
     pub human: bool,
+    pub you: bool,
     pub entering: bool,
 }
 
@@ -256,11 +262,10 @@ fn transform_out(transform: &Transform) -> TransformOut {
 }
 
 fn trail_out(trail: &Trail) -> TrailOut {
-    TrailOut { points: trail.points.clone() }
+    TrailOut {
+        points: trail.points.clone(),
+    }
 }
-
-
-
 
 fn audit_player(world: &World, entity: crate::ecs::Entity) -> Option<HudPlayerOut> {
     world.player(entity).map(|player| HudPlayerOut {
@@ -268,20 +273,24 @@ fn audit_player(world: &World, entity: crate::ecs::Entity) -> Option<HudPlayerOu
         number: player.tag.number,
         alive: player.condition.alive,
         human: player.tag.is_human,
+        you: player.tag.is_human,
         entering: player.condition.entering_time > 0.0,
     })
 }
 
 impl World {
     pub fn frame(&self) -> Frame {
-        let mut roster: TeamLists<HudPlayerOut> =
-            TeamLists { blue: Vec::new(), red: Vec::new() };
+        let mut roster: TeamLists<HudPlayerOut> = TeamLists {
+            blue: Vec::new(),
+            red: Vec::new(),
+        };
         for (entity, player) in self.players.iter() {
             let hud = HudPlayerOut {
                 id: entity.index(),
                 number: player.tag.number,
                 alive: player.condition.alive,
                 human: player.tag.is_human,
+                you: player.tag.is_human,
                 entering: player.condition.entering_time > 0.0,
             };
             match player.tag.team {
@@ -316,7 +325,9 @@ impl World {
                     number: player.tag.number,
                     team: player.tag.team,
                     slot: player.tag.slot,
+                    owner: player.tag.owner,
                     is_human: player.tag.is_human,
+                    is_you: player.tag.is_human,
                     glasses: player.tag.glasses,
                 },
                 condition: ConditionOut {
@@ -328,7 +339,9 @@ impl World {
                     out_x: player.condition.out_x,
                     out_y: player.condition.out_y,
                 },
-                carry: CarryOut { ball: player.carry.map(|ball| ball.index()) },
+                carry: CarryOut {
+                    ball: player.carry.map(|ball| ball.index()),
+                },
                 action: ActionOut {
                     charge: player.action.charge,
                     charging: player.action.charging,
@@ -374,7 +387,9 @@ impl World {
                     valid_attempt: ball.state.valid_attempt,
                     warning_issued: ball.state.warning_issued,
                 },
-                held: HeldOut { by: ball.held_by.map(|holder| holder.index()) },
+                held: HeldOut {
+                    by: ball.held_by.map(|holder| holder.index()),
+                },
                 trail: trail_out(&ball.trail),
             })
             .collect();
@@ -422,7 +437,9 @@ impl World {
             phase: self.phase.id,
             phase_elapsed: self.phase.elapsed,
             time: self.time,
-            clock: ClockOut { sim: self.clock.sim },
+            clock: ClockOut {
+                sim: self.clock.sim,
+            },
             feedback: FeedbackOut {
                 shake: self.feedback.shake,
                 flash: self.feedback.flash,
@@ -442,7 +459,10 @@ impl World {
             match_winner: self.match_state.match_winner,
             roster,
             out_queue,
-            shot: ShotOut { team: self.shot.team, time_left: self.shot.clock },
+            shot: ShotOut {
+                team: self.shot.team,
+                time_left: self.shot.clock,
+            },
             sudden_death: self.set.sudden_death,
             rush_active: self.rush.active,
             set_elapsed: self.set.elapsed,

@@ -1,6 +1,7 @@
 import './styles/global.css';
 import { sfx } from './game/audio';
 import { Bridge } from './game/bridge';
+import { OnlineBridge } from './game/online';
 import type { Frame } from './game/frame';
 import { toHud } from './game/frame';
 import { CUSTOM_SLOT, DIFFICULTIES, PLAYER_NAME_MAX, ROSTER } from './game/constants';
@@ -75,7 +76,15 @@ const ctx: CanvasRenderingContext2D = context2d;
 
 const input = new Input(canvas);
 const ui = createUi();
-const bridge = new Bridge(settings);
+const onlineUri = import.meta.env.VITE_SPACETIME_URI as string | undefined;
+const onlineDb = (import.meta.env.VITE_SPACETIME_DB as string | undefined) ?? 'dodgeball-simulator';
+const bridge = onlineUri
+  ? new OnlineBridge({
+      uri: onlineUri,
+      database: onlineDb,
+      playerName: settings.playerName || 'Player',
+    })
+  : new Bridge(settings);
 sfx.muted = settings.muted;
 
 let frame: Frame = bridge.frame();
@@ -148,10 +157,8 @@ if (typeof ResizeObserver !== 'undefined') {
 
 // ------------------------------------------------------------------ game loop
 
-// Handy for debugging in the browser console during development.
-if (import.meta.env.DEV) {
-  Object.assign(window, { __dodgeball: { bridge, input, ui } });
-}
+// Handy for debugging and for the browser smoke test in both dev and preview.
+Object.assign(window, { __dodgeball: { bridge, input, ui } });
 
 let last = performance.now();
 

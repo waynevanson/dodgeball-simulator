@@ -77,11 +77,13 @@ export function hotspots(frame: Frame, ui: UiState, input: Input): Hotspot[] {
   switch (ui.screen) {
     case 'menu': {
       const layout = menuLayout(frame.lineup.customName);
-      for (const button of layout.difficulty) {
-        found.push({ id: `difficulty:${button.id}`, rect: button.rect });
-      }
-      for (const button of layout.lineup) {
-        found.push({ id: `lineup:${button.slot}`, rect: button.rect });
+      if (!frame.online) {
+        for (const button of layout.difficulty) {
+          found.push({ id: `difficulty:${button.id}`, rect: button.rect });
+        }
+        for (const button of layout.lineup) {
+          found.push({ id: `lineup:${button.slot}`, rect: button.rect });
+        }
       }
       found.push({ id: 'name', rect: layout.name });
       found.push({ id: 'play', rect: layout.play });
@@ -98,7 +100,7 @@ export function hotspots(frame: Frame, ui: UiState, input: Input): Hotspot[] {
     case 'results': {
       const layout = resultsLayout();
       found.push({ id: 'again', rect: layout.again });
-      found.push({ id: 'menu', rect: layout.menu });
+      if (!frame.online) found.push({ id: 'menu', rect: layout.menu });
       break;
     }
     case 'rules': {
@@ -109,7 +111,9 @@ export function hotspots(frame: Frame, ui: UiState, input: Input): Hotspot[] {
       break;
   }
 
-  if (showingTopBar(frame, ui)) found.push(...topLayout());
+  if (showingTopBar(frame, ui)) {
+    found.push(...topLayout().filter((spot) => !frame.online || spot.id !== 'pause'));
+  }
   if (showingControls(frame, ui, input)) found.push(...touchLayout());
   return found;
 }

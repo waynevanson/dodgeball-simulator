@@ -16,8 +16,8 @@ pub mod snapshot;
 pub mod types;
 pub mod world;
 
-#[cfg(target_arch = "wasm32")]
+#[cfg(feature = "wasm")]
 mod wasm;
 
-#[cfg(target_arch = "wasm32")]
+#[cfg(feature = "wasm")]
 pub use wasm::Game;

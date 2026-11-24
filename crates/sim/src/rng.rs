@@ -4,14 +4,16 @@
 //! its seed. That keeps the simulation testable without `getrandom` or any
 //! platform entropy source.
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Rng {
     state: u64,
 }
 
 impl Rng {
     pub fn new(seed: u64) -> Self {
-        Self { state: seed ^ 0x9E37_79B9_7F4A_7C15 }
+        Self {
+            state: seed ^ 0x9E37_79B9_7F4A_7C15,
+        }
     }
 
     pub fn next_u64(&mut self) -> u64 {

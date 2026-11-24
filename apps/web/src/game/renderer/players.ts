@@ -131,7 +131,7 @@ export function drawPlayers(ctx: CanvasRenderingContext2D, frame: Frame, time: n
       ctx.restore();
     }
 
-    if (tag.isHuman) {
+    if (tag.isYou) {
       ctx.beginPath();
       ctx.arc(p.x, p.y, p.radius + 10 + Math.sin(time * 4) * 1.6, 0, TAU);
       ctx.strokeStyle = 'rgba(232, 238, 252, 0.42)';

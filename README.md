@@ -109,12 +109,15 @@ in the HUD so the state of the set is always readable.
 
 ## Architecture
 
-Two packages with one boundary between them:
+Three packages with one presentation boundary:
 
 | Package | Owns |
 | --- | --- |
-| `crates/sim` (Rust → wasm) | ECS, rules, physics, AI, match flow, effects, HUD view model |
+| `crates/sim` (Rust → wasm + native) | ECS, rules, physics, AI, match flow, effects, HUD view model |
+| `crates/server` (SpacetimeDB module) | Authoritative online tick, input validation, persistence, replication |
 | `apps/web` (TypeScript) | Canvas 2D rendering, canvas UI, input, WebAudio, settings |
+
+The offline build runs `crates/sim` in the browser. The online build runs the same crate inside the SpacetimeDB module and replaces the transport with `apps/web/src/game/online.ts`; the renderer and canvas UI consume the identical `Frame` in both modes.
 
 The Rust side never touches a canvas or WebAudio. Each frame the browser calls
 `Game.tick(dt, input)`, receives a **snapshot** (plain objects for players,
@@ -130,7 +133,7 @@ the simulation emitted.
                  SfxEvent[]
 ```
 
-Only four things cross the boundary:
+In the offline build only four things cross the wasm boundary:
 
 1. `Game::new(seed, difficulty, humanSlot, customName)`
 2. `Game::tick(dt, inputFrame) -> Frame`
@@ -247,12 +250,103 @@ it is refreshed every time the crate is built.
 
 ---
 
+---
+
+## Multiplayer (SpacetimeDB)
+
+Online play is server-authoritative. The Rust simulation runs inside a
+SpacetimeDB module (`crates/server`) at 20 ticks per second; browsers send their
+latest input and render snapshots received from the database. The offline WASM
+build remains the default when no SpacetimeDB URI is configured.
+
+### What the module does
+
+- Persists the ECS `World` in a private table between reducer calls.
+- Publishes `frame_state` (the same `Frame` the canvas already renders),
+  `participant` rows and transient `game_event` sound events.
+- Runs a scheduled `tick` reducer every 50 ms while players are connected.
+- Autobalances teams, fills empty slots with AI, makes the 13th player a
+  spectator, hands a disconnected player's slot back to the AI, and resets to
+  the menu when the last human leaves, so the next visitor does not inherit a
+  frozen abandoned match. Only one start request can begin a match.
+- Inputs are private and validated against `ctx.sender()`. The server consumes
+  dash/catch edges exactly once and drops stale input after 1.25 s.
+
+### Local online play
+
+Install the CLI matching the crate version (2.16.1). The upstream installer is
+the easiest route:
+
+```bash
+curl -sSf https://install.spacetimedb.com | sh
+spacetime --version
+```
+
+Then:
+
+```bash
+# Terminal 1: local SpacetimeDB server
+spacetime start
+
+# Terminal 2: build, publish and generate client bindings
+pnpm module:build
+pnpm module:publish
+pnpm module:generate
+
+# Terminal 3: Vite with the online transport
+pnpm dev:online
+```
+
+`pnpm module:publish` publishes to the local server as `dodgeball-simulator`.
+`pnpm module:generate` refreshes `apps/web/src/module_bindings` from the
+unoptimised module binary, so it does not depend on a particular `wasm-opt`.
+Re-run it whenever the server's tables or reducers change. During development,
+publish with `--delete-data=always` if you change the persisted `World` layout;
+the private state is a versioned blob inside `sim_state`.
+
+Open two browser windows (or two devices on the same network) and both will
+join the same arena. For another device, replace `localhost` with your machine's
+LAN address and make sure SpacetimeDB is reachable from it. The menu shows the connection state; the first player to
+press **START MATCH** starts the set. Team selection is automatic: the server
+puts you on the team with fewer humans, in the first free slot.
+
+### Maincloud
+
+Publish the module once and point the static client at the database:
+
+```bash
+spacetime login
+spacetime publish <your-database-name> -s maincloud --bin-path target/wasm32-unknown-unknown/release/dodgeball_server.wasm
+```
+
+Set `VITE_SPACETIME_URI=wss://maincloud.spacetimedb.com` and
+`VITE_SPACETIME_DB=<your-database-name>`, then build. On GitHub Pages, set the
+repository variables `SPACETIME_URI` and `SPACETIME_DB`; the deploy workflow
+passes them to Vite. With either variable unset the page stays in offline mode.
+
+SpacetimeDB is a transactional database, not a UDP game socket. The 20 Hz tick
+plus client-side interpolation keeps a casual 6v6 game playable, but budget for
+egress: the full presentation snapshot is currently ~12–20 KB. A production
+version should split player/ball rows and derive trails/particles client-side.
+Also stop the tick when no humans are connected — the module already does this
+— so an idle arena does not write transactions.
+
+### Files
+
+| Path | Role |
+| --- | --- |
+| `crates/server/src/lib.rs` | Tables, scheduled tick, join/input/leave/start reducers |
+| `apps/web/src/module_bindings/` | Generated TypeScript client bindings (committed) |
+| `apps/web/src/game/online.ts` | SpacetimeDB transport, input throttling, interpolation |
+| `apps/web/src/game/audio/events.ts` | Shared sound-event player for offline and online |
+| `apps/web/src/game/frame.ts` | `Frame` snapshot, including owner/`isYou` |
 ## Development
 
 Requires:
 
 - **Node 20+** and **pnpm 10** (pinned via `packageManager`)
-- **Rust 1.95.0** (pinned in `rust-toolchain.toml`) with the `wasm32-unknown-unknown` target
+- **Rust 1.97.1** (pinned in `rust-toolchain.toml`) with the `wasm32-unknown-unknown` target
+- **SpacetimeDB CLI 2.16.1** for online play (the Rust module and npm client are pinned to the same version)
 - **`wasm-bindgen-cli` 0.2.121**, matching the pinned `wasm-bindgen` crate
 
 ```bash
@@ -277,18 +371,17 @@ pnpm check      # typecheck + rust tests + wasm check
 ```
 
 **unplugin-cargo.** The Vite plugin compiles `crates/sim/src/lib.rs` to wasm,
-runs `wasm-bindgen`, generates the glue and watches the crate's `.rs` files.
-It is installed straight from GitHub at the `0.2.0` tag, which ships the built
-`dist` and the Cargo-workspace fix (dep-info paths resolved against
-`cargo metadata`'s `workspace_root`, and only existing files watched):
+runs `wasm-bindgen`, generates the glue and watches the crate's `Cargo.toml`,
+workspace `Cargo.lock`, `build.rs` and `.rs` files. The package is not published
+to npm; it is installed from the prebuilt GitHub Release tarball, as documented
+upstream:
 
 ```json
-"@waynevanson/unplugin-cargo": "github:waynevanson/unplugin-cargo#path:/packages/unplugin-cargo&0.2.0"
+"@waynevanson/unplugin-cargo": "https://github.com/waynevanson/unplugin-cargo/releases/download/0.2.1/waynevanson-unplugin-cargo-0.2.1.tgz"
 ```
 
-`#path:` is a pnpm extension for monorepos, so use pnpm for a direct GitHub
-install. When the package is published to npm, this can become a normal
-version range.
+The tarball ships `dist`, so there is no install-time build step. The Vite
+config enables the crate's `wasm` feature.
 
 Vite uses a relative `base`, so the build works at any path (including
 `https://<user>.github.io/dodgeball-simulator/`).

@@ -1,13 +1,13 @@
 use crate::ecs::Entity;
 use crate::types::{Difficulty, Team};
 
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct Pos {
     pub x: f64,
     pub y: f64,
 }
 
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct Transform {
     pub x: f64,
     pub y: f64,
@@ -17,26 +17,26 @@ pub struct Transform {
     pub facing: f64,
 }
 
-#[derive(Clone, Copy, Debug, Default, serde::Serialize)]
+#[derive(Clone, Copy, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct TrailPoint {
     pub x: f64,
     pub y: f64,
     pub a: f64,
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct Trail {
     pub points: Vec<TrailPoint>,
 }
 
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct PlayerStats {
     pub throws: u32,
     pub catches: u32,
     pub outs: u32,
 }
 
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct Intent {
     pub mx: f64,
     pub my: f64,
@@ -47,7 +47,7 @@ pub struct Intent {
     pub catch: bool,
 }
 
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct Condition {
     pub alive: bool,
     pub has_glasses: bool,
@@ -58,7 +58,7 @@ pub struct Condition {
     pub out_y: f64,
 }
 
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct Action {
     pub charge: f64,
     pub charging: bool,
@@ -68,7 +68,7 @@ pub struct Action {
     pub dash_y: f64,
 }
 
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct Cooldowns {
     pub catch_window: f64,
     pub catch_cd: f64,
@@ -76,7 +76,7 @@ pub struct Cooldowns {
     pub pickup_cd: f64,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Brain {
     pub diff: Option<Difficulty>,
     pub seek: Option<Entity>,
@@ -117,12 +117,15 @@ impl Default for Brain {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct PlayerTag {
     pub name: String,
     pub number: u32,
     pub team: Team,
     pub slot: usize,
+    /// Stable, server-owned id of the human controlling this player, if any.
+    /// The simulation never needs to know anything else about the session.
+    pub owner: Option<u64>,
     pub is_human: bool,
     pub glasses: bool,
 }
@@ -130,7 +133,7 @@ pub struct PlayerTag {
 /// One player. In the TypeScript build this was ten separate components; the
 /// component set is fixed per entity kind, so Rust keeps it as one owned value
 /// and the ECS still stores and queries players as entities.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Player {
     pub transform: Transform,
     pub tag: PlayerTag,
@@ -144,7 +147,7 @@ pub struct Player {
     pub stats: PlayerStats,
 }
 
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct BallTag {
     pub spin: f64,
     pub spin_v: f64,
@@ -153,7 +156,7 @@ pub struct BallTag {
 }
 
 /// The ball lifecycle: rush -> armed -> in flight -> dead or held.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct BallState {
     pub live: bool,
     pub armed: bool,
@@ -172,7 +175,7 @@ pub struct BallState {
     pub release_positions: Vec<Pos>,
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct Ball {
     pub transform: Transform,
     pub tag: BallTag,
@@ -181,7 +184,7 @@ pub struct Ball {
     pub trail: Trail,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum ParticleKind {
     Spark,
     Dust,
@@ -200,7 +203,7 @@ impl ParticleKind {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Particle {
     pub transform: Transform,
     pub life: f64,
@@ -213,7 +216,7 @@ pub struct Particle {
     pub spin_v: f64,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Floater {
     pub transform: Transform,
     pub text: String,
@@ -223,7 +226,7 @@ pub struct Floater {
     pub size: Option<f64>,
 }
 
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct Glasses {
     pub transform: Transform,
     pub rot: f64,

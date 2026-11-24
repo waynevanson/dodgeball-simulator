@@ -43,12 +43,23 @@ pub fn home_facing(team: Team) -> f64 {
 pub fn spawn_match(world: &mut World) {
     world.clock = Clock::default();
     world.feedback = Feedback::default();
-    world.set = SetState { id: 0, resolved: true, ..SetState::default() };
+    world.set = SetState {
+        id: 0,
+        resolved: true,
+        ..SetState::default()
+    };
     world.rush = Rush::default();
-    world.shot = Shot { team: None, clock: SHOT_CLOCK, beep: 99 };
+    world.shot = Shot {
+        team: None,
+        clock: SHOT_CLOCK,
+        beep: 99,
+    };
     world.queues = Queues::default();
     world.warnings = Warnings::default();
-    world.lineup = Lineup { human_slot: CUSTOM_SLOT, custom_name: DEFAULT_CUSTOM_NAME.to_string() };
+    world.lineup = Lineup {
+        human_slot: CUSTOM_SLOT,
+        custom_name: DEFAULT_CUSTOM_NAME.to_string(),
+    };
     world.last_throw = LastThrow::default();
     world.last_set = LastSet::default();
     world.claims.clear();
@@ -105,6 +116,7 @@ pub fn spawn_match(world: &mut World) {
                         number: entry.number,
                         team,
                         slot,
+                        owner: None,
                         is_human: entry.human,
                         glasses: entry.glasses,
                     },
@@ -114,7 +126,10 @@ pub fn spawn_match(world: &mut World) {
                         ..Condition::default()
                     },
                     carry: None,
-                    action: Action { dash_x: 1.0, ..Action::default() },
+                    action: Action {
+                        dash_x: 1.0,
+                        ..Action::default()
+                    },
                     cooldowns: Cooldowns::default(),
                     intent: Intent::default(),
                     brain: Brain {
@@ -161,28 +176,84 @@ pub fn spawn_match(world: &mut World) {
 /// Choose which blue player the human controls and apply the custom sixth name.
 pub fn set_lineup(world: &mut World, human_slot: usize, custom_name: &str) {
     let slot = human_slot.min(ROSTER - 1);
-    let cleaned: String = custom_name
-        .trim()
-        .split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ");
-    let cleaned: String = cleaned.chars().take(PLAYER_NAME_MAX).collect();
-    let custom = if cleaned.is_empty() { DEFAULT_CUSTOM_NAME.to_string() } else { cleaned };
+    let custom = clean_name(custom_name);
 
     world.lineup.human_slot = slot;
     world.lineup.custom_name = custom.clone();
 
     for entity in world.players_vec() {
-        let Some(player) = world.player_mut(entity) else { continue };
-        if player.tag.team != Team::Blue {
+        let Some(player) = world.player_mut(entity) else {
+            continue;
+        };
+        if player.tag.team == Team::Blue {
+            player.tag.name = if player.tag.slot == CUSTOM_SLOT {
+                custom.clone()
+            } else {
+                BLUE_LINEUP[player.tag.slot].name.to_string()
+            };
+        }
+        // The browser build has exactly one local human, owned by id 0.
+        player.tag.is_human = player.tag.team == Team::Blue && player.tag.slot == slot;
+        player.tag.owner = if player.tag.is_human { Some(0) } else { None };
+    }
+}
+
+fn clean_name(name: &str) -> String {
+    let cleaned: String = name.trim().split_whitespace().collect::<Vec<_>>().join(" ");
+    let cleaned: String = cleaned.chars().take(PLAYER_NAME_MAX).collect();
+    if cleaned.is_empty() {
+        DEFAULT_CUSTOM_NAME.to_string()
+    } else {
+        cleaned
+    }
+}
+
+/// Server-side ownership assignment. Passing `None` hands the slot back to the
+/// AI and restores the roster name; passing a name renames the player.
+pub fn assign_owner(
+    world: &mut World,
+    team: Team,
+    slot: usize,
+    owner: Option<u64>,
+    name: Option<&str>,
+) {
+    if slot >= ROSTER {
+        return;
+    }
+    let chosen = difficulty(world.match_state.difficulty);
+    let red_name = world
+        .red_roster
+        .get(slot)
+        .map(|entry| entry.name.to_string());
+    let custom = name.map(clean_name);
+
+    for entity in world.players_vec() {
+        let Some(player) = world.player_mut(entity) else {
+            continue;
+        };
+        if player.tag.team != team || player.tag.slot != slot {
             continue;
         }
-        player.tag.name = if player.tag.slot == CUSTOM_SLOT {
-            custom.clone()
+
+        player.tag.owner = owner;
+        player.tag.is_human = owner.is_some();
+        player.brain.diff = if player.tag.is_human {
+            None
         } else {
-            BLUE_LINEUP[player.tag.slot].name.to_string()
+            Some(chosen)
         };
-        player.tag.is_human = player.tag.slot == slot;
+
+        if let Some(owner_name) = &custom {
+            if owner.is_some() {
+                player.tag.name = owner_name.clone();
+            }
+        }
+        if owner.is_none() {
+            player.tag.name = match team {
+                Team::Blue => BLUE_LINEUP[slot].name.to_string(),
+                Team::Red => red_name.clone().unwrap_or_else(|| player.tag.name.clone()),
+            };
+        }
     }
 }
 
@@ -190,7 +261,11 @@ pub fn set_lineup(world: &mut World, human_slot: usize, custom_name: &str) {
 pub fn apply_difficulty(world: &mut World) {
     let chosen = difficulty(world.match_state.difficulty);
     for (_, player) in world.players.iter_mut() {
-        player.brain.diff = if player.tag.is_human { None } else { Some(chosen) };
+        player.brain.diff = if player.tag.is_human {
+            None
+        } else {
+            Some(chosen)
+        };
     }
 }
 
@@ -202,7 +277,11 @@ pub fn start_set(world: &mut World) {
     world.set.sudden_death = false;
     world.rush.active = true;
     world.last_throw.team = None;
-    world.shot = Shot { team: None, clock: SHOT_CLOCK, beep: 99 };
+    world.shot = Shot {
+        team: None,
+        clock: SHOT_CLOCK,
+        beep: 99,
+    };
     world.warnings = Warnings::default();
     world.queues = Queues::default();
     world.feedback.slowmo = 0.0;
@@ -222,7 +301,11 @@ pub fn to_menu(world: &mut World) {
     world.set.sudden_death = false;
     world.rush.active = false;
     world.last_throw.team = None;
-    world.shot = Shot { team: None, clock: SHOT_CLOCK, beep: 99 };
+    world.shot = Shot {
+        team: None,
+        clock: SHOT_CLOCK,
+        beep: 99,
+    };
     world.warnings = Warnings::default();
     world.queues = Queues::default();
     world.feedback.slowmo = 0.0;
@@ -238,7 +321,9 @@ pub fn setup_formation(world: &mut World) {
 
     let player_entities = world.players_vec();
     for entity in player_entities {
-        let Some(player) = world.player(entity) else { continue };
+        let Some(player) = world.player(entity) else {
+            continue;
+        };
         let (x, y) = spawns(player.tag.team)[player.tag.slot];
         reset_player(world, entity, x, y);
     }
@@ -251,7 +336,9 @@ pub fn setup_formation(world: &mut World) {
 }
 
 pub fn reset_player(world: &mut World, entity: Entity, x: f64, y: f64) {
-    let Some(player) = world.player_mut(entity) else { return };
+    let Some(player) = world.player_mut(entity) else {
+        return;
+    };
     player.transform.x = x;
     player.transform.y = y;
     player.transform.vx = 0.0;
@@ -268,7 +355,10 @@ pub fn reset_player(world: &mut World, entity: Entity, x: f64, y: f64) {
 
     player.carry = None;
 
-    player.action = Action { dash_x: 1.0, ..Action::default() };
+    player.action = Action {
+        dash_x: 1.0,
+        ..Action::default()
+    };
     player.cooldowns = Cooldowns::default();
     player.trail.points.clear();
     player.stats = PlayerStats::default();
@@ -287,7 +377,9 @@ pub fn reset_player(world: &mut World, entity: Entity, x: f64, y: f64) {
 
 /// Rule 25.2: return from the queue over the back line.
 pub fn reenter_player(world: &mut World, entity: Entity) {
-    let Some(player) = world.player_mut(entity) else { return };
+    let Some(player) = world.player_mut(entity) else {
+        return;
+    };
     let (x, y) = spawns(player.tag.team)[player.tag.slot];
     player.condition.alive = true;
     player.transform.x = x;
@@ -316,7 +408,9 @@ pub fn reenter_player(world: &mut World, entity: Entity) {
 }
 
 pub fn place_ball(world: &mut World, entity: Entity, x: f64, y: f64) {
-    let Some(ball) = world.ball_mut(entity) else { return };
+    let Some(ball) = world.ball_mut(entity) else {
+        return;
+    };
     ball.held_by = None;
     ball.state = BallState {
         live: false,

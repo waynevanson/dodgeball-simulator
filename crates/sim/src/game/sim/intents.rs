@@ -7,18 +7,31 @@ use crate::world::World;
 
 use super::halves;
 
-pub fn build_intents(world: &mut World, input: &InputFrame, dt: f64) {
+pub fn build_intents(world: &mut World, inputs: &[(Entity, InputFrame)], dt: f64) {
     assign_claims(world);
 
     for entity in world.players_vec() {
-        let Some(player) = world.player(entity) else { continue };
+        let Some(player) = world.player(entity) else {
+            continue;
+        };
         if !player.condition.alive {
             continue;
         }
         let is_human = player.tag.is_human;
 
         let intent = if is_human {
-            human_intent(world, entity, input)
+            match inputs
+                .iter()
+                .find(|(owner_entity, _)| *owner_entity == entity)
+            {
+                Some((_, input)) => human_intent(world, entity, input),
+                // A human without a fresh input (for example while joining or
+                // after a dropped packet) stands still rather than running AI.
+                None => Intent {
+                    aim: player.transform.facing,
+                    ..Intent::default()
+                },
+            }
         } else {
             crate::game::ai::build_ai_intent(world, entity, dt)
         };
@@ -61,10 +74,14 @@ pub fn assign_claims(world: &mut World) {
 
     let mut pairs: Vec<Pair> = Vec::new();
     for player_entity in seekers {
-        let Some(player) = world.player(player_entity) else { continue };
+        let Some(player) = world.player(player_entity) else {
+            continue;
+        };
         let area = halves(player.tag.team);
         for ball_entity in &free {
-            let Some(ball) = world.ball(*ball_entity) else { continue };
+            let Some(ball) = world.ball(*ball_entity) else {
+                continue;
+            };
             if ball.transform.x < area.min_x - 6.0 || ball.transform.x > area.max_x + 6.0 {
                 continue;
             }
@@ -77,11 +94,19 @@ pub fn assign_claims(world: &mut World) {
             if player.brain.seek == Some(*ball_entity) {
                 cost -= 70.0;
             }
-            pairs.push(Pair { player: player_entity, ball: *ball_entity, cost });
+            pairs.push(Pair {
+                player: player_entity,
+                ball: *ball_entity,
+                cost,
+            });
         }
     }
 
-    pairs.sort_by(|a, b| a.cost.partial_cmp(&b.cost).unwrap_or(std::cmp::Ordering::Equal));
+    pairs.sort_by(|a, b| {
+        a.cost
+            .partial_cmp(&b.cost)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
 
     let mut claimed_players: Vec<Entity> = Vec::new();
     let mut claimed_balls: Vec<Entity> = Vec::new();
@@ -102,7 +127,9 @@ pub fn assign_claims(world: &mut World) {
 }
 
 pub fn human_intent(world: &World, entity: Entity, input: &InputFrame) -> Intent {
-    let Some(player) = world.player(entity) else { return Intent::default() };
+    let Some(player) = world.player(entity) else {
+        return Intent::default();
+    };
     let (x, y, facing, team, alive) = (
         player.transform.x,
         player.transform.y,
@@ -111,7 +138,10 @@ pub fn human_intent(world: &World, entity: Entity, input: &InputFrame) -> Intent
         player.condition.alive,
     );
 
-    let mut intent = Intent { aim: facing, ..Intent::default() };
+    let mut intent = Intent {
+        aim: facing,
+        ..Intent::default()
+    };
     if !alive {
         return intent;
     }
@@ -173,7 +203,9 @@ pub fn auto_aim(world: &World, x: f64, y: f64, team: Team, facing: f64) -> f64 {
             ));
         }
     }
-    let Some((tx, ty, tvx, tvy)) = best else { return facing };
+    let Some((tx, ty, tvx, tvy)) = best else {
+        return facing;
+    };
     let flight = best_distance / 1150.0;
     angle_to(x, y, tx + tvx * flight * 0.85, ty + tvy * flight * 0.85)
 }

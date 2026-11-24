@@ -31,7 +31,7 @@
           pkgs = import nixpkgs { inherit system; };
           rust = fenix.packages.${system}.fromToolchainFile {
             file = ./rust-toolchain.toml;
-            sha256 = "sha256-gh/xTkxKHL4eiRXzWv8KP7vfjSk61Iq48x47BEDFgfk=";
+            sha256 = "sha256-A1abGIbOtcBSdrUMhDGrER3pRM1hQP4fp9gh3Y4PKc8=";
           };
         in
         {
@@ -45,7 +45,10 @@
               # unversioned attribute moves ahead with nixpkgs and wasm-bindgen
               # refuses to run when the CLI and crate schema differ.
               pkgs.wasm-bindgen-cli_0_2_121
-              pkgs.binaryen
+              # SpacetimeDB: install the CLI matching `spacetimedb` in Cargo.toml.
+              # nixpkgs currently ships 2.15.0, while the module and npm client
+              # are pinned to 2.16.1. Use the upstream installer or publish with
+              # `--bin-path target/wasm32-unknown-unknown/release/dodgeball_server.wasm`.
             ];
           };
         }

@@ -5,13 +5,25 @@ pub mod sim;
 pub mod spawn;
 
 use crate::constants::*;
+use crate::ecs::Entity;
 use crate::math::clamp;
 use crate::resources::InputFrame;
 use crate::types::Phase;
 use crate::world::World;
 
-/// One frame: match flow first, then the simulation, then effects.
+/// One frame for the local single-player build. The browser has one human, so
+/// its input is applied to whichever player owns the local session.
 pub fn tick(world: &mut World, dt: f64, input: &InputFrame) {
+    let mut inputs = Vec::with_capacity(1);
+    if let Some((entity, _)) = world.human() {
+        inputs.push((entity, *input));
+    }
+    tick_with_inputs(world, dt, &inputs);
+}
+
+/// One frame with an input per human-controlled player. The SpacetimeDB module
+/// collects every connected client's latest input and calls this each tick.
+pub fn tick_with_inputs(world: &mut World, dt: f64, inputs: &[(Entity, InputFrame)]) {
     let dt = clamp(dt, 0.0, 0.05);
     world.time += dt;
 
@@ -39,7 +51,7 @@ pub fn tick(world: &mut World, dt: f64, input: &InputFrame) {
             if !world.set.sudden_death && world.set.elapsed >= SUDDEN_DEATH_AFTER {
                 sim::rules::enter_sudden_death(world);
             }
-            sim::intents::build_intents(world, input, dt);
+            sim::intents::build_intents(world, inputs, dt);
             sim::loop_::simulate(world, sim_dt, false);
             if !world.set.resolved {
                 sim::rules::update_arming(world);

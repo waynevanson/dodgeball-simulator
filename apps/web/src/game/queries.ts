@@ -10,7 +10,7 @@ export function balls(frame: Frame): BallView[] {
 }
 
 export function human(frame: Frame): PlayerView | null {
-  return frame.players.find((player) => player.tag.isHuman) ?? null;
+  return frame.players.find((player) => player.tag.isYou) ?? null;
 }
 
 export function carriedBall(frame: Frame, player: PlayerView): BallView | null {

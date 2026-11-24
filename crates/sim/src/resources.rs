@@ -2,19 +2,19 @@ use serde::Deserialize;
 
 use crate::types::{DifficultyId, Phase, Score, Team};
 
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct Clock {
     pub sim: f64,
 }
 
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct Feedback {
     pub shake: f64,
     pub flash: f64,
     pub slowmo: f64,
 }
 
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct SetState {
     pub id: u32,
     pub resolved: bool,
@@ -23,12 +23,12 @@ pub struct SetState {
     pub sudden_death: bool,
 }
 
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct Rush {
     pub active: bool,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Shot {
     pub team: Option<Team>,
     pub clock: f64,
@@ -37,11 +37,15 @@ pub struct Shot {
 
 impl Default for Shot {
     fn default() -> Self {
-        Self { team: None, clock: 10.0, beep: 99 }
+        Self {
+            team: None,
+            clock: 10.0,
+            beep: 99,
+        }
     }
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct Queues {
     pub blue: Vec<crate::ecs::Entity>,
     pub red: Vec<crate::ecs::Entity>,
@@ -63,7 +67,7 @@ impl Queues {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct Warnings {
     pub blue: u32,
     pub red: u32,
@@ -85,23 +89,23 @@ impl Warnings {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Lineup {
     pub human_slot: usize,
     pub custom_name: String,
 }
 
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct LastThrow {
     pub team: Option<Team>,
 }
 
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct LastSet {
     pub winner: Option<Team>,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize)]
 pub struct PhaseState {
     pub id: Phase,
     pub elapsed: f64,
@@ -114,11 +118,16 @@ pub struct PhaseState {
 
 impl Default for PhaseState {
     fn default() -> Self {
-        Self { id: Phase::Menu, elapsed: 0.0, resume_from: None, beep: 99 }
+        Self {
+            id: Phase::Menu,
+            elapsed: 0.0,
+            resume_from: None,
+            beep: 99,
+        }
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize)]
 pub struct MatchState {
     pub difficulty: DifficultyId,
     pub score: Score,
@@ -140,7 +149,7 @@ impl Default for MatchState {
 }
 
 /// One frame of human input, assembled by the TypeScript input layer.
-#[derive(Clone, Copy, Debug, Default, Deserialize)]
+#[derive(Clone, Copy, Debug, Default, serde::Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct InputFrame {
     pub up: bool,

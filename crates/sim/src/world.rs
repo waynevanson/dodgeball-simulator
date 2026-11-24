@@ -9,6 +9,7 @@ use crate::types::{DifficultyId, Phase, Score, SfxEvent, Team};
 /// Per-player claim on a loose ball, rebuilt every frame for the AI.
 pub type Claims = Vec<(Entity, Entity)>;
 
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct World {
     pub entities: EntityAllocator,
 
@@ -34,19 +35,21 @@ pub struct World {
     pub pending: Vec<crate::types::Trigger>,
 
     pub rng: Rng,
+    /// Sound events are transient and are drained into the database's event
+    /// table before the server persists the world.
+    #[serde(skip)]
     pub events: Vec<SfxEvent>,
     pub claims: Claims,
+    /// Generated red-team names are presentation-only and are rebuilt when a
+    /// fresh match starts. The server rehydrates `World` every tick, so it is
+    /// not worth carrying this across the database boundary.
+    #[serde(skip)]
     pub red_roster: Vec<crate::constants::RosterEntry>,
     pub time: f64,
 }
 
 impl World {
-    pub fn new(
-        seed: u64,
-        difficulty: DifficultyId,
-        human_slot: usize,
-        custom_name: &str,
-    ) -> Self {
+    pub fn new(seed: u64, difficulty: DifficultyId, human_slot: usize, custom_name: &str) -> Self {
         let mut world = Self {
             entities: EntityAllocator::new(),
             players: SparseSet::new(),
@@ -56,7 +59,10 @@ impl World {
             glasses: SparseSet::new(),
             clock: Clock::default(),
             feedback: Feedback::default(),
-            set: SetState { resolved: true, ..SetState::default() },
+            set: SetState {
+                resolved: true,
+                ..SetState::default()
+            },
             rush: Rush::default(),
             shot: Shot::default(),
             queues: Queues::default(),
@@ -68,7 +74,10 @@ impl World {
             last_throw: LastThrow::default(),
             last_set: LastSet::default(),
             phase: PhaseState::default(),
-            match_state: MatchState { difficulty, ..MatchState::default() },
+            match_state: MatchState {
+                difficulty,
+                ..MatchState::default()
+            },
             pending: Vec::new(),
             rng: Rng::new(seed),
             events: Vec::new(),
@@ -79,6 +88,18 @@ impl World {
 
         spawn_match(&mut world);
         set_lineup(&mut world, human_slot, custom_name);
+        apply_difficulty(&mut world);
+        world
+    }
+
+    /// A world with no human-controlled players. The SpacetimeDB module starts
+    /// every arena this way and attaches owners as clients join.
+    pub fn new_headless(seed: u64, difficulty: DifficultyId) -> Self {
+        let mut world = Self::new(seed, difficulty, CUSTOM_SLOT, DEFAULT_CUSTOM_NAME);
+        for (_, player) in world.players.iter_mut() {
+            player.tag.owner = None;
+            player.tag.is_human = false;
+        }
         apply_difficulty(&mut world);
         world
     }
@@ -140,6 +161,13 @@ impl World {
         self.players.iter().find(|(_, player)| player.tag.is_human)
     }
 
+    pub fn player_by_owner(&self, owner: u64) -> Option<Entity> {
+        self.players
+            .iter()
+            .find(|(_, player)| player.tag.owner == Some(owner))
+            .map(|(entity, _)| entity)
+    }
+
     pub fn carried_ball(&self, player: Entity) -> Option<Entity> {
         self.players.get(player).and_then(|player| player.carry)
     }
@@ -156,13 +184,21 @@ impl World {
             return None;
         }
         if held_blue != held_red {
-            return Some(if held_blue > held_red { Team::Blue } else { Team::Red });
+            return Some(if held_blue > held_red {
+                Team::Blue
+            } else {
+                Team::Red
+            });
         }
 
         let alive_blue = self.alive_count(Team::Blue);
         let alive_red = self.alive_count(Team::Red);
         if alive_blue != alive_red {
-            return Some(if alive_blue > alive_red { Team::Blue } else { Team::Red });
+            return Some(if alive_blue > alive_red {
+                Team::Blue
+            } else {
+                Team::Red
+            });
         }
 
         if let Some(team) = self.last_throw.team {

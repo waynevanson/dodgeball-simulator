@@ -13,6 +13,7 @@ export default defineConfig({
   plugins: [
     cargo({
       pattern: 'src/lib.rs',
+      features: ['wasm'],
     }),
     wasm(),
   ],

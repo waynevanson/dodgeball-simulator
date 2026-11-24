@@ -16,7 +16,16 @@ export function drawBottomBar(
   const y = 692;
   const compact = hud.compact;
   const player = human(frame);
-  if (!player) return;
+  if (!player) {
+    if (hud.online && hud.connection === 'spectating') {
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.font = `800 ${compact ? 15 : 11}px ${MONO}`;
+      ctx.fillStyle = 'rgba(148, 163, 184, 0.7)';
+      ctx.fillText('SPECTATING · THE ARENA IS FULL', VIEW_W / 2, y);
+    }
+    return;
+  }
   const ball = carriedBall(frame, player);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';

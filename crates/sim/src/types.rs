@@ -58,7 +58,7 @@ impl DifficultyId {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct Difficulty {
     pub id: DifficultyId,
     pub reaction: f64,
@@ -145,7 +145,7 @@ impl Phase {
 }
 
 /// Queued flow events. `send` pushes; the flow system drains.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub enum Trigger {
     Start,
     Pause,
@@ -180,7 +180,7 @@ impl Score {
 
 /// Sounds are emitted by the simulation and consumed by the TypeScript layer,
 /// so the Rust core never touches WebAudio.
-#[derive(Clone, Copy, Debug, Serialize)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", tag = "type", content = "value")]
 pub enum SfxEvent {
     Throw(f64),

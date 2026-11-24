@@ -94,7 +94,7 @@ export function drawTeamHud(ctx: CanvasRenderingContext2D, hud: Hud, team: TeamI
       ctx.lineWidth = 1.2;
       ctx.stroke();
       ctx.setLineDash([]);
-    } else if (p.human) {
+    } else if (p.you) {
       ctx.beginPath();
       ctx.arc(px, py, compact ? 16 : 13, 0, TAU);
       ctx.strokeStyle = 'rgba(232, 238, 252, 0.45)';
@@ -144,5 +144,11 @@ export function drawCenterHud(ctx: CanvasRenderingContext2D, hud: Hud, time: num
     ctx.font = `900 ${compact ? 11 : 9}px ${MONO}`;
     ctx.fillStyle = 'rgba(251, 191, 36, 0.85)';
     ctx.fillText('OPENING RUSH', cx, compact ? 104 : 96);
+  }
+
+  if (hud.online && (hud.connection === 'offline' || hud.connection === 'error')) {
+    ctx.font = `900 px `;
+    ctx.fillStyle = '#ff8a9a';
+    ctx.fillText('CONNECTION LOST', cx, compact ? 120 : 110);
   }
 }

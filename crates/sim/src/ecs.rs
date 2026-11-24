@@ -6,10 +6,12 @@
 //! never aliases the entity that replaced it. [`SparseSet`] stores values in
 //! insertion order and answers `entity -> value` through a sparse index table.
 
+use serde::{Deserialize, Serialize};
+
 const ABSENT: u32 = u32::MAX;
 const MAX_GENERATION: u32 = (1 << 20) - 1;
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, Serialize, Deserialize)]
 pub struct Entity(u64);
 
 impl Entity {
@@ -30,7 +32,7 @@ impl Entity {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Serialize, Deserialize)]
 pub struct EntityAllocator {
     generation: Vec<u32>,
     live: Vec<bool>,
@@ -108,6 +110,7 @@ impl EntityAllocator {
 /// handles in insertion order; `values` mirrors that order. Removal swaps the
 /// last value into the freed slot, exactly like the original TypeScript ECS, so
 /// query order stays spawn order until something dies.
+#[derive(Serialize, Deserialize)]
 pub struct SparseSet<T> {
     sparse: Vec<u32>,
     dense: Vec<Entity>,

@@ -29,7 +29,7 @@ jobs:
           node-version: 22
           cache: pnpm
 
-      - uses: dtolnay/rust-toolchain@1.95.0
+      - uses: dtolnay/rust-toolchain@1.97.1
         with:
           targets: wasm32-unknown-unknown
 
@@ -44,6 +44,11 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Typecheck, test and build
+        env:
+          # Optional: set these repository variables to build the GitHub Pages
+          # client against a SpacetimeDB arena. Empty values keep the offline build.
+          VITE_SPACETIME_URI: ${{ vars.SPACETIME_URI }}
+          VITE_SPACETIME_DB: ${{ vars.SPACETIME_DB }}
         run: |
           pnpm typecheck
           pnpm rust:test
