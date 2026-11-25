@@ -45,11 +45,16 @@
               pkgs.nodejs_22
               pkgs.pnpm
               pkgs.biome
+              pkgs.pkg-config
+              pkgs.wayland
+              pkgs.libxkbcommon
+              pkgs.openssl
+              pkgs.systemd
               rust
               binaryen129
               # SpacetimeDB: install the CLI matching `spacetimedb` in Cargo.toml.
-              # nixpkgs currently ships 2.15.0, while the module and npm client
-              # are pinned to 2.16.1. Use the upstream installer or publish with
+              # nixpkgs currently ships an older CLI; the module and Rust client SDK are
+              # pinned to 2.16.3. Use the upstream installer or publish with
               # `--bin-path target/wasm32-unknown-unknown/release/dodgeball_server.wasm`.
             ];
           };

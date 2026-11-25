@@ -1,17 +1,17 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::components::*;
 use crate::types::{DifficultyId, Phase, Score, Team};
 use crate::world::World;
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TeamLists<T> {
     pub blue: Vec<T>,
     pub red: Vec<T>,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TransformOut {
     pub x: f64,
@@ -22,13 +22,13 @@ pub struct TransformOut {
     pub facing: f64,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TrailOut {
     pub points: Vec<TrailPoint>,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PlayerTagOut {
     pub name: String,
@@ -43,7 +43,7 @@ pub struct PlayerTagOut {
     pub glasses: bool,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ConditionOut {
     pub alive: bool,
@@ -55,13 +55,13 @@ pub struct ConditionOut {
     pub out_y: f64,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CarryOut {
     pub ball: Option<u32>,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ActionOut {
     pub charge: f64,
@@ -72,7 +72,7 @@ pub struct ActionOut {
     pub dash_y: f64,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CooldownsOut {
     pub catch_window: f64,
@@ -81,7 +81,7 @@ pub struct CooldownsOut {
     pub pickup_cd: f64,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StatsOut {
     pub throws: u32,
@@ -89,7 +89,7 @@ pub struct StatsOut {
     pub outs: u32,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PlayerOut {
     pub id: u32,
@@ -103,7 +103,7 @@ pub struct PlayerOut {
     pub stats: StatsOut,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BallTagOut {
     pub spin: f64,
@@ -112,7 +112,7 @@ pub struct BallTagOut {
     pub age: f64,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BallStateOut {
     pub live: bool,
@@ -125,13 +125,13 @@ pub struct BallStateOut {
     pub warning_issued: bool,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct HeldOut {
     pub by: Option<u32>,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BallOut {
     pub id: u32,
@@ -142,7 +142,7 @@ pub struct BallOut {
     pub trail: TrailOut,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ParticleOut {
     pub x: f64,
@@ -152,11 +152,11 @@ pub struct ParticleOut {
     pub life: f64,
     pub max: f64,
     #[serde(rename = "type")]
-    pub kind: &'static str,
+    pub kind: String,
     pub spin: f64,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FloaterOut {
     pub x: f64,
@@ -168,7 +168,7 @@ pub struct FloaterOut {
     pub size: Option<f64>,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GlassesOut {
     pub x: f64,
@@ -176,7 +176,7 @@ pub struct GlassesOut {
     pub rot: f64,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct HudPlayerOut {
     pub id: u32,
@@ -187,34 +187,34 @@ pub struct HudPlayerOut {
     pub entering: bool,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DifficultyOut {
     pub id: DifficultyId,
-    pub label: &'static str,
+    pub label: String,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ShotOut {
     pub team: Option<Team>,
     pub time_left: f64,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LineupOut {
     pub human_slot: usize,
     pub custom_name: String,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ClockOut {
     pub sim: f64,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FeedbackOut {
     pub shake: f64,
@@ -222,7 +222,7 @@ pub struct FeedbackOut {
     pub slowmo: f64,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Frame {
     pub phase: Phase,
@@ -403,7 +403,7 @@ impl World {
                 color: particle.color.clone(),
                 life: particle.life,
                 max: particle.max,
-                kind: particle.kind.as_str(),
+                kind: particle.kind.as_str().to_string(),
                 spin: particle.spin,
             })
             .collect();
@@ -448,7 +448,7 @@ impl World {
             set: self.match_state.set,
             difficulty: DifficultyOut {
                 id: self.match_state.difficulty,
-                label: self.match_state.difficulty.label(),
+                label: self.match_state.difficulty.label().to_string(),
             },
             lineup: LineupOut {
                 human_slot: self.lineup.human_slot,

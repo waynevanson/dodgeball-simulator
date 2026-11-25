@@ -2,9 +2,6 @@
   "database": "dodgeball-simulator",
   "module-path": "crates/server",
   "server": "local",
-  "generate": [
-    { "language": "typescript", "out-dir": "apps/web/src/module_bindings" }
-  ],
   "dev": {
     "run": "pnpm dev:client"
   }

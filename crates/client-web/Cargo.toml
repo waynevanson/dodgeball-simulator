@@ -1,0 +1,18 @@
+[package]
+name = "dodgeball-client-web"
+description = "Browser/wasm entry point for the dodgeball Bevy client"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+dodgeball-client = { path = "../client" }
+wasm-bindgen = "0.2"
+console_error_panic_hook = "0.1"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+bevy = { version = "=0.20.1", default-features = false, features = ["webgl2"] }

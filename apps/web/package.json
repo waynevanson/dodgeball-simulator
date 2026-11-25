@@ -3,18 +3,17 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "Canvas presentation, input and audio for the dodgeball simulator",
+  "description": "Vite shell for the Rust Bevy dodgeball client",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "dev": "bash -c 'test -f src/wasm/dodgeball_client.js || pnpm wasm' && vite",
+    "pretypecheck": "bash -c 'test -f src/wasm/dodgeball_client.js || pnpm wasm'",
+    "wasm": "bash ../../scripts/build-web-wasm.sh",
+    "build": "pnpm wasm && tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "typescript": "^5.7.2",
     "vite": "^6.0.5"
-  },
-  "dependencies": {
-    "spacetimedb": "2.16.1"
   }
 }

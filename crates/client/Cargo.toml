@@ -1,0 +1,50 @@
+[package]
+name = "dodgeball-client"
+description = "Shared Bevy client for browser and desktop dodgeball"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+bevy = { version = "=0.20.1", default-features = false, features = [
+    "std",
+    "async_executor",
+    "bevy_asset",
+    "bevy_log",
+    "bevy_winit",
+    "bevy_window",
+    "bevy_render",
+    "bevy_core_pipeline",
+    "bevy_sprite",
+    "bevy_sprite_render",
+    "bevy_text",
+    "bevy_ui",
+    "bevy_ui_render",
+    "bevy_gizmos",
+    "bevy_gizmos_render",
+    "default_font",
+    "keyboard",
+    "mouse",
+    "touch",
+    "png",
+    "x11",
+    "wayland",
+    "multi_threaded",
+    "webgl2"
+] }
+bevy_stdb = "0.14.0"
+dodgeball-bindings = { path = "../client-bindings" }
+dodgeball-sim = { path = "../sim" }
+serde.workspace = true
+serde_json.workspace = true
+fastrand = "2"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+bevy_stdb = { version = "0.14.0", features = ["browser"] }
+spacetimedb-sdk = { workspace = true, features = ["browser"] }
+wasm-bindgen = "0.2"
+web-sys = { version = "0.3", features = ["Window", "Storage"] }
