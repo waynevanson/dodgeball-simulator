@@ -10,15 +10,19 @@
     # SpacetimeDB 2.16 cannot parse the wasm emitted by binaryen 133.
     # nixos-26.05 provides binaryen 129, which it can parse.
     nixpkgs-binaryen.url = "github:NixOS/nixpkgs/nixos-26.05";
+    devenv = {
+      url = "github:cachix/devenv/v2.4.0";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+  };
+
+  nixConfig = {
+    extra-trusted-public-keys = "devenv.cachix.org-1:w1cLUi8dv3hnoSPGAuibQv+f9TZLr6cv/Hm9XgU50cw=";
+    extra-substituters = "https://devenv.cachix.org";
   };
 
   outputs =
-    {
-      nixpkgs,
-      fenix,
-      nixpkgs-binaryen,
-      ...
-    }:
+    { self, nixpkgs, devenv, ... }@inputs:
     let
       systems = [
         "x86_64-linux"
@@ -32,35 +36,16 @@
       devShells = forAllSystems (
         system:
         let
-          pkgs = import nixpkgs { inherit system; };
-          rust = fenix.packages.${system}.fromToolchainFile {
-            file = ./rust-toolchain.toml;
-            sha256 = "sha256-A1abGIbOtcBSdrUMhDGrER3pRM1hQP4fp9gh3Y4PKc8=";
-          };
-          binaryen129 = (import nixpkgs-binaryen { inherit system; }).binaryen;
+          pkgs = nixpkgs.legacyPackages.${system};
         in
         {
-          default = pkgs.mkShell {
-            packages = [
-              pkgs.nodejs_22
-              pkgs.pnpm
-              pkgs.biome
-              pkgs.pkg-config
-              pkgs.wayland
-              pkgs.libxkbcommon
-              pkgs.openssl
-              pkgs.systemd
-              rust
-              binaryen129
-              # SpacetimeDB: install the CLI matching `spacetimedb` in Cargo.toml.
-              # nixpkgs currently ships an older CLI; the module and Rust client SDK are
-              # pinned to 2.16.3. Use the upstream installer or publish with
-              # `--bin-path target/wasm32-unknown-unknown/release/dodgeball_server.wasm`.
-            ];
+          default = devenv.lib.mkShell {
+            inherit inputs pkgs;
+            modules = [ ./devenv.nix ];
           };
         }
       );
 
-      formatter = forAllSystems (system: (import nixpkgs { inherit system; }).biome);
+      formatter = forAllSystems (system: nixpkgs.legacyPackages.${system}.biome);
     };
 }
