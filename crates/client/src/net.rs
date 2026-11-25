@@ -16,6 +16,7 @@ use dodgeball_sim::resources::InputFrame;
 use crate::input::InputState;
 use crate::model::{ClientState, ConnectionState};
 use crate::platform;
+use crate::predict::Prediction;
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum SubKey {
@@ -169,15 +170,15 @@ fn read_frames(
     for message in frames.read() {
         newest = Some((message.new.json.clone(), message.new.tick));
     }
-    let Some((json, _tick)) = newest else {
+    let Some((json, tick)) = newest else {
         return;
     };
     if std::env::var_os("DODGEBALL_LOG_FRAMES").is_some() {
-        debug!("frame {_tick}");
+        debug!("frame {tick}");
     }
     match serde_json::from_str(&json) {
         Ok(frame) => {
-            state.push_frame(frame, now);
+            state.push_frame(frame, now, tick);
             if state.connection == ConnectionState::Connecting {
                 state.connection = if state.spectator {
                     ConnectionState::Spectating
@@ -262,6 +263,7 @@ pub fn send_input(
     mut input: ResMut<InputState>,
     state: Res<ClientState>,
     mut session: ResMut<ArenaSession>,
+    mut prediction: ResMut<Prediction>,
     time: Res<Time>,
 ) {
     let Some(connection) = connection else {
@@ -288,6 +290,7 @@ pub fn send_input(
         warn!("set_input failed: {error}");
         return;
     }
+    prediction.push_input(session.seq, frame);
     input.mark_sent();
 }
 

@@ -10,6 +10,7 @@ pub mod input;
 pub mod model;
 pub mod net;
 pub mod platform;
+pub mod predict;
 pub mod render;
 pub mod ui;
 
@@ -56,6 +57,7 @@ pub fn run(config: ClientConfig) {
     app.insert_resource(state)
         .insert_resource(view)
         .insert_resource(input::InputState::default())
+        .init_resource::<predict::Prediction>()
         .init_resource::<render::PlayerVisuals>()
         .init_resource::<render::BallVisuals>()
         .add_systems(
@@ -74,6 +76,7 @@ pub fn run(config: ClientConfig) {
             (
                 input::gather_input,
                 input::gather_touches,
+                predict::update_prediction,
                 update_view,
                 ui::update_layout,
                 ui::update_screens,
@@ -83,7 +86,9 @@ pub fn run(config: ClientConfig) {
                 ui::handle_actions,
                 ui::name_input,
             )
-                .chain(),
+                .chain()
+                .after(net::NetSet)
+                .before(net::send_input),
         )
         .add_systems(Update, debug_screenshot)
         .add_systems(
@@ -118,9 +123,15 @@ pub fn run(config: ClientConfig) {
     app.run();
 }
 
-fn update_view(time: Res<Time>, mut state: ResMut<ClientState>, mut view: ResMut<ViewFrame>) {
+fn update_view(
+    time: Res<Time>,
+    mut state: ResMut<ClientState>,
+    prediction: Res<predict::Prediction>,
+    mut view: ResMut<ViewFrame>,
+) {
     let now = time.elapsed_secs_f64();
-    let next = state.build_view(now);
+    let mut next = state.build_view(now);
+    prediction.apply(&mut next);
     state.view = next.clone();
     view.0 = next;
 }

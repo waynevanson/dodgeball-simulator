@@ -49,6 +49,43 @@ pub struct World {
 }
 
 impl World {
+    /// An empty world with only the resources needed by a local client-side
+    /// prediction pass. It has no players, balls or presentation state.
+    pub fn empty(seed: u64) -> Self {
+        Self {
+            entities: EntityAllocator::new(),
+            players: SparseSet::new(),
+            balls: SparseSet::new(),
+            particles: SparseSet::new(),
+            floaters: SparseSet::new(),
+            glasses: SparseSet::new(),
+            clock: Clock::default(),
+            feedback: Feedback::default(),
+            set: SetState {
+                resolved: true,
+                ..SetState::default()
+            },
+            rush: Rush::default(),
+            shot: Shot::default(),
+            queues: Queues::default(),
+            warnings: Warnings::default(),
+            lineup: Lineup {
+                human_slot: CUSTOM_SLOT,
+                custom_name: DEFAULT_CUSTOM_NAME.to_string(),
+            },
+            last_throw: LastThrow::default(),
+            last_set: LastSet::default(),
+            phase: PhaseState::default(),
+            match_state: MatchState::default(),
+            pending: Vec::new(),
+            rng: Rng::new(seed),
+            events: Vec::new(),
+            claims: Vec::new(),
+            red_roster: Vec::new(),
+            time: 0.0,
+        }
+    }
+
     pub fn new(seed: u64, difficulty: DifficultyId, human_slot: usize, custom_name: &str) -> Self {
         let mut world = Self {
             entities: EntityAllocator::new(),

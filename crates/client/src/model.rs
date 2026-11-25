@@ -58,6 +58,7 @@ pub struct ClientState {
 #[derive(Clone)]
 pub struct FrameSample {
     pub at: f64,
+    pub tick: u64,
     pub frame: Frame,
 }
 
@@ -103,8 +104,8 @@ impl ClientState {
         }
     }
 
-    pub fn push_frame(&mut self, frame: Frame, at: f64) {
-        self.samples.push(FrameSample { at, frame });
+    pub fn push_frame(&mut self, frame: Frame, at: f64, tick: u64) {
+        self.samples.push(FrameSample { at, tick, frame });
         while self.samples.len() > 8 {
             self.samples.remove(0);
         }
@@ -146,7 +147,7 @@ impl ClientState {
                 if target < first.at {
                     first.frame.clone()
                 } else {
-                    last.frame.clone()
+                    extrapolate(last.frame.clone(), target - last.at)
                 }
             }
         };
@@ -240,6 +241,29 @@ pub fn empty_frame(name: &str, slot: usize) -> Frame {
 
 fn lerp(a: f64, b: f64, t: f64) -> f64 {
     a + (b - a) * t
+}
+
+/// Extrapolate briefly past the newest snapshot when a packet is late. This
+/// keeps fast balls and moving players from visibly freezing, but the horizon
+/// is deliberately short so we never drift around court collisions for long.
+fn extrapolate(mut frame: Frame, ahead: f64) -> Frame {
+    let ahead = ahead.clamp(0.0, 0.12);
+    if ahead <= 0.0 {
+        return frame;
+    }
+    for player in &mut frame.players {
+        if player.condition.alive {
+            player.transform.x += player.transform.vx * ahead;
+            player.transform.y += player.transform.vy * ahead;
+        }
+    }
+    for ball in &mut frame.balls {
+        if ball.state.live {
+            ball.transform.x += ball.transform.vx * ahead;
+            ball.transform.y += ball.transform.vy * ahead;
+        }
+    }
+    frame
 }
 
 pub fn blend(from: &Frame, to: &Frame, t: f64) -> Frame {

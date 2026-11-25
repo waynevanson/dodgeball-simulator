@@ -93,6 +93,12 @@ pub struct StatsOut {
 #[serde(rename_all = "camelCase")]
 pub struct PlayerOut {
     pub id: u32,
+    /// Highest client input sequence the server applied for this player.
+    ///
+    /// Filled in by the SpacetimeDB module after simulation; the simulation
+    /// itself does not need to know about client sessions.
+    #[serde(default)]
+    pub last_input_seq: u64,
     pub transform: TransformOut,
     pub tag: PlayerTagOut,
     pub condition: ConditionOut,
@@ -318,6 +324,7 @@ impl World {
             .iter()
             .map(|(entity, player)| PlayerOut {
                 id: entity.index(),
+                last_input_seq: 0,
                 transform: transform_out(&player.transform),
                 tag: PlayerTagOut {
                     name: player.tag.name.clone(),

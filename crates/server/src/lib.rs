@@ -127,8 +127,23 @@ fn save_world(ctx: &ReducerContext, world: &World) {
     }
 }
 
-fn write_frame(ctx: &ReducerContext, world: &World, tick: u64) {
-    let json = serde_json::to_string(&world.frame()).expect("frame serialization");
+fn write_frame(ctx: &ReducerContext, world: &World, tick: u64, acknowledge_inputs: bool) {
+    let acks: std::collections::HashMap<u64, u64> = if acknowledge_inputs {
+        ctx.db
+            .player_input()
+            .iter()
+            .map(|row| (row.owner_id, row.seq))
+            .collect()
+    } else {
+        std::collections::HashMap::new()
+    };
+    let mut frame = world.frame();
+    for player in &mut frame.players {
+        if let Some(owner) = player.tag.owner {
+            player.last_input_seq = acks.get(&owner).copied().unwrap_or(0);
+        }
+    }
+    let json = serde_json::to_string(&frame).expect("frame serialization");
     match ctx.db.frame_state().id().find(FRAME_ID) {
         Some(row) => {
             ctx.db
@@ -223,7 +238,7 @@ fn sync_frame(ctx: &ReducerContext, world: &World) {
         .find(STATE_ID)
         .map(|state| state.tick)
         .unwrap_or(0);
-    write_frame(ctx, world, tick);
+    write_frame(ctx, world, tick, false);
 }
 
 /// Attach or detach a client from a simulation player. Returns whether the
@@ -631,5 +646,5 @@ pub fn tick(ctx: &ReducerContext, _timer: TickTimer) {
     }
 
     save_world(ctx, &world);
-    write_frame(ctx, &world, state.tick);
+    write_frame(ctx, &world, state.tick, true);
 }

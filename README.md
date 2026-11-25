@@ -184,6 +184,23 @@ latest input and render snapshots received from the database.
   the menu when the last human leaves.
 - Inputs are private and validated against `ctx.sender()`.
 
+### Prediction and reconciliation
+
+The client uses the shared Rust simulation for local prediction instead of only
+interpolating every actor:
+
+- The local player and the ball they carry/throw are advanced at the simulation's
+  120 Hz substep, so input, dashing, charging and throws respond immediately.
+- Each snapshot carries `lastInputSeq` per player. The client keeps the inputs
+  sent after the server's acknowledgement and replays them on top of the latest
+  authoritative state.
+- Small corrections are blended out; deaths, respawns and large corrections snap
+  immediately. Remote players and balls still use the 90 ms interpolation buffer,
+  with a short velocity extrapolation when a packet is late.
+
+Prediction never decides hits, catches, eliminations or score. Those remain
+server-authoritative.
+
 ### Local online play
 
 Install the SpacetimeDB CLI matching the crate version (2.16.3), then:

@@ -1,6 +1,6 @@
 # Rust/Bevy migration status — paused
 
-Last updated: after the first full browser/native render pass.
+Last updated: after adding local-player/ball prediction and reconciliation.
 
 ## Goal
 
@@ -66,6 +66,21 @@ SpacetimeDB module in `crates/server`.
   name editing.
 - Enabled required Bevy features: `keyboard`, `mouse`, `touch`, `png`,
   `bevy_audio` is **not** enabled (see remaining work).
+
+### Client prediction / netcode
+
+- Added `crates/client/src/predict.rs`:
+  - local player and owned-ball prediction using the shared `dodgeball-sim`
+    `step_player` / `step_ball` at fixed 120 Hz substeps;
+  - input timeline and replay of inputs newer than the server's acknowledgement;
+  - soft visual correction for small errors and snapping for deaths/respawns;
+  - local throw prediction, including ball flight and trail, reconciled against
+    the authoritative ball.
+- `PlayerOut` now carries `lastInputSeq`, filled by the server from the private
+  `player_input` row when it writes `frame_state`.
+- Snapshot interpolation extrapolates briefly past the newest sample instead of
+  freezing when a packet is late.
+- Added unit tests for edge consumption and local movement prediction.
 
 ### Browser shell
 
