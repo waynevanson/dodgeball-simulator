@@ -2,14 +2,12 @@ import { sfx } from '../audio';
 import { DEFAULT_CUSTOM_NAME } from '../constants/roster';
 import type { Frame } from '../frame';
 import type { Input } from '../input';
-import type { DifficultyId } from '../types';
 import { commitName } from './flow';
 import type { UiState } from './state';
 
 /** Commands the canvas UI can issue to the Rust simulation. */
 export interface Commands {
-  setDifficulty(id: DifficultyId): void;
-  setLineup(slot: number, name: string): void;
+  setName(name: string): void;
   startMatch(): void;
   pause(): void;
   resume(): void;
@@ -23,21 +21,6 @@ export function act(
   commands: Commands,
   input: Input,
 ): void {
-  if (id.startsWith('difficulty:')) {
-    commands.setDifficulty(id.slice('difficulty:'.length) as DifficultyId);
-    ui.dirty = true;
-    sfx.ui();
-    return;
-  }
-
-  if (id.startsWith('lineup:')) {
-    const slot = Number(id.slice('lineup:'.length));
-    commands.setLineup(slot, frame.lineup.customName);
-    ui.dirty = true;
-    sfx.ui();
-    return;
-  }
-
   switch (id) {
     case 'name':
       ui.editingName = true;
@@ -47,18 +30,18 @@ export function act(
     case 'play':
     case 'again':
     case 'restart':
-      commitName(frame, ui, commands);
+      commitName(ui, commands);
       sfx.resume();
       if (input.usingTouch) void toggleFullscreen();
       commands.startMatch();
       break;
     case 'resume':
-      commitName(frame, ui, commands);
+      commitName(ui, commands);
       sfx.resume();
       commands.resume();
       break;
     case 'menu':
-      commitName(frame, ui, commands);
+      commitName(ui, commands);
       sfx.ui();
       commands.toMenu();
       break;

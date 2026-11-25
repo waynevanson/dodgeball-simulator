@@ -17,7 +17,7 @@ export function drawBottomBar(
   const compact = hud.compact;
   const player = human(frame);
   if (!player) {
-    if (hud.online && hud.connection === 'spectating') {
+    if (hud.connection === 'spectating') {
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.font = `800 ${compact ? 15 : 11}px ${MONO}`;

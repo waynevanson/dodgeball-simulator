@@ -6,23 +6,12 @@
       "persistent": true,
       "env": ["VITE_SPACETIME_URI", "VITE_SPACETIME_DB"]
     },
-    "dev:offline": {
-      "cache": false,
-      "persistent": true
-    },
     "preview": {
       "cache": false,
       "persistent": true
     },
     "build": {
       "dependsOn": ["^build"],
-      "inputs": [
-        "$TURBO_DEFAULT$",
-        "$TURBO_ROOT$/Cargo.toml",
-        "$TURBO_ROOT$/Cargo.lock",
-        "$TURBO_ROOT$/rust-toolchain.toml",
-        "$TURBO_ROOT$/crates/**"
-      ],
       "env": ["VITE_SPACETIME_URI", "VITE_SPACETIME_DB"],
       "outputs": ["dist/**"]
     },

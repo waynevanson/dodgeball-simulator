@@ -44,9 +44,6 @@ export function drawResults(ctx: CanvasRenderingContext2D, frame: Frame, ui: UiS
     INK_DIM,
   );
   button(ctx, layout.again, 'PLAY AGAIN', 'cta', false, ui.hover === 'again');
-  if (!frame.online) {
-    button(ctx, layout.menu, 'MAIN MENU', 'ghost', false, ui.hover === 'menu');
-  }
   label(
     ctx,
     `First to ${WINS_NEEDED} sets \u00b7 ${frame.difficulty.label}`,

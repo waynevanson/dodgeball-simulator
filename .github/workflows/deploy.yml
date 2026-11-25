@@ -35,18 +35,14 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
-      # The crate pins this version; see Cargo.toml.
-      - uses: taiki-e/install-action@v2
-        with:
-          tool: wasm-bindgen-cli@0.2.121
-
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Typecheck, test and build
         env:
-          # Optional: set these repository variables to build the GitHub Pages
-          # client against a SpacetimeDB arena. Empty values keep the offline build.
+          # Set these repository variables to build the GitHub Pages client
+          # against a SpacetimeDB arena. When unset, the client falls back to
+          # ws://localhost:3000.
           VITE_SPACETIME_URI: ${{ vars.SPACETIME_URI }}
           VITE_SPACETIME_DB: ${{ vars.SPACETIME_DB }}
         run: |

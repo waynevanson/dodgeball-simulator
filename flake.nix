@@ -46,10 +46,6 @@
               pkgs.pnpm
               pkgs.biome
               rust
-              # Must match the pinned `wasm-bindgen` crate version; the
-              # unversioned attribute moves ahead with nixpkgs and wasm-bindgen
-              # refuses to run when the CLI and crate schema differ.
-              pkgs.wasm-bindgen-cli_0_2_121
               binaryen129
               # SpacetimeDB: install the CLI matching `spacetimedb` in Cargo.toml.
               # nixpkgs currently ships 2.15.0, while the module and npm client

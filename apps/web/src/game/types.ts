@@ -9,21 +9,6 @@ export interface Score {
   red: number;
 }
 
-export interface Difficulty {
-  id: DifficultyId;
-  label: string;
-  /** Seconds of hesitation before the AI trusts a fresh target. */
-  reaction: number;
-  aimError: number;
-  catchChance: number;
-  dodge: number;
-  speed: number;
-  dashChance: number;
-  throwDelay: number;
-  lead: number;
-  wantCatch: number;
-}
-
 export interface TeamPalette {
   name: string;
   main: string;

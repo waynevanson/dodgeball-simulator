@@ -1,11 +1,11 @@
 import type { Frame } from '../frame';
 import type { Input } from '../input';
-import { BLUE_LINEUP, CUSTOM_SLOT, DEFAULT_CUSTOM_NAME } from '../constants/roster';
+import { DEFAULT_CUSTOM_NAME } from '../constants/roster';
 import { VIEW_W } from '../constants/view';
 import { roundRect } from '../math';
 import { menuLayout } from './layout';
 import { button, label, panel, wrap } from './shapes';
-import { DIFFICULTY_LABELS, FONT, INK, INK_DIM, INK_FAINT, MONO } from './state';
+import { FONT, INK, INK_DIM, INK_FAINT, MONO } from './state';
 import type { UiState } from './state';
 
 export function drawBrand(ctx: CanvasRenderingContext2D): void {
@@ -35,7 +35,7 @@ export function drawMenu(
   input: Input,
 ): void {
   const lineup = frame.lineup;
-  const layout = menuLayout(lineup.customName);
+  const layout = menuLayout();
 
   panel(ctx, layout.panel);
   drawBrand(ctx);
@@ -44,44 +44,20 @@ export function drawMenu(
   label(ctx, "Six a side. Six balls on the centre line. One hit and you're out.", cx, 190, `500 12.5px ${FONT}`, INK_DIM);
   label(ctx, 'Catch a live ball to send the thrower out and bring a teammate back in.', cx, 208, `500 12.5px ${FONT}`, INK_DIM);
 
-  if (frame.online) {
-    const state = frame.connection ?? 'connecting';
-    const colour = state === 'online' ? '#8fb6ff' : state === 'error' ? '#ff8a9a' : INK_DIM;
-    const statusText = state === 'online' ? 'CONNECTED' : state.toUpperCase();
-    label(ctx, `ONLINE · ${statusText}`, cx, 250, `800 11px ${MONO}`, colour);
-    label(
-      ctx,
-      state === 'spectating'
-        ? 'The arena is full. You are watching this match.'
-        : 'You will be placed on the team with fewer players.',
-      cx,
-      274,
-      `500 12.5px ${FONT}`,
-      INK_DIM,
-    );
-  } else {
-    for (const buttonDef of layout.difficulty) {
-      const id = `difficulty:${buttonDef.id}`;
-      button(
-        ctx,
-        buttonDef.rect,
-        DIFFICULTY_LABELS[buttonDef.id],
-        'pill',
-        frame.difficulty.id === buttonDef.id,
-        ui.hover === id,
-      );
-    }
-
-    label(ctx, 'PLAY AS', cx, 286, `800 10px ${MONO}`, INK_FAINT);
-    for (const buttonDef of layout.lineup) {
-      const id = `lineup:${buttonDef.slot}`;
-      const name =
-        buttonDef.slot === CUSTOM_SLOT
-          ? lineup.customName
-          : (BLUE_LINEUP[buttonDef.slot]?.name ?? '');
-      button(ctx, buttonDef.rect, name, 'pill', lineup.humanSlot === buttonDef.slot, ui.hover === id);
-    }
-  }
+  const state = frame.connection ?? 'connecting';
+  const colour = state === 'online' ? '#8fb6ff' : state === 'error' ? '#ff8a9a' : INK_DIM;
+  const statusText = state === 'online' ? 'CONNECTED' : state.toUpperCase();
+  label(ctx, `ONLINE · ${statusText}`, cx, 250, `800 11px ${MONO}`, colour);
+  label(
+    ctx,
+    state === 'spectating'
+      ? 'The arena is full. You are watching this match.'
+      : 'You will be placed on the team with fewer players.',
+    cx,
+    274,
+    `500 12.5px ${FONT}`,
+    INK_DIM,
+  );
 
   label(ctx, 'CUSTOM PLAYER NAME', cx, 356, `800 9.5px ${MONO}`, INK_FAINT);
 
@@ -114,9 +90,7 @@ export function drawMenu(
 
   label(
     ctx,
-    frame.online
-      ? 'Your name is sent when you join. Teams are balanced automatically.'
-      : 'Type your own name for the sixth player, or leave it blank for Crispy.',
+    'Your name is sent when you join. Teams are balanced automatically.',
     cx,
     418,
     `500 10.5px ${FONT}`,
@@ -126,7 +100,7 @@ export function drawMenu(
   button(
     ctx,
     layout.play,
-    frame.online ? (frame.connection === 'spectating' ? 'SPECTATING' : 'START MATCH') : 'PLAY BALL',
+    frame.connection === 'spectating' ? 'SPECTATING' : 'START MATCH',
     'cta',
     false,
     ui.hover === 'play',

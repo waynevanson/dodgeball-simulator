@@ -1,4 +1,3 @@
-import type { DifficultyId } from '../types';
 import type { Rect } from './layout';
 
 /**
@@ -40,14 +39,6 @@ export const INK_FAINT = '#64748b';
 export const PANEL_FILL = 'rgba(11, 16, 27, 0.94)';
 
 export const PANEL_LINE = 'rgba(148, 163, 184, 0.18)';
-
-export const DIFFICULTY_ORDER: DifficultyId[] = ['rookie', 'pro', 'allstar'];
-
-export const DIFFICULTY_LABELS: Record<DifficultyId, string> = {
-  rookie: 'Rookie',
-  pro: 'Pro',
-  allstar: 'All-star',
-};
 
 export const MENU_PANEL: Rect = { x: 300, y: 40, w: 680, h: 640 };
 

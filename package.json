@@ -5,7 +5,6 @@
   "scripts": {
     "dev": "spacetime dev --yes",
     "dev:client": "turbo run dev --filter=@dodgeball/web",
-    "dev:offline": "turbo run dev:offline --filter=@dodgeball/web",
     "build": "turbo run build",
     "preview": "turbo run preview --filter=@dodgeball/web",
     "typecheck": "turbo run typecheck",

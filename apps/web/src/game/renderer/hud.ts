@@ -146,7 +146,7 @@ export function drawCenterHud(ctx: CanvasRenderingContext2D, hud: Hud, time: num
     ctx.fillText('OPENING RUSH', cx, compact ? 104 : 96);
   }
 
-  if (hud.online && (hud.connection === 'offline' || hud.connection === 'error')) {
+  if (hud.connection === 'offline' || hud.connection === 'error') {
     ctx.font = `900 px `;
     ctx.fillStyle = '#ff8a9a';
     ctx.fillText('CONNECTION LOST', cx, compact ? 120 : 110);

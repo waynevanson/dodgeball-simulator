@@ -1,9 +1,9 @@
 import type { DifficultyId, Phase, Score, TeamId } from './types';
 
 /**
- * The read-only view of the Rust world that crosses the wasm boundary each
- * frame. Shapes mirror the snapshot structs in `crates/sim/src/snapshot.rs`;
- * the renderer and the canvas UI read only this, never the simulation.
+ * The read-only view of the Rust world published by SpacetimeDB each tick.
+ * Shapes mirror the snapshot structs in `crates/sim/src/snapshot.rs`; the
+ * renderer and the canvas UI read only this, never the simulation.
  */
 
 export interface TrailPointView {
@@ -162,8 +162,6 @@ export interface Frame {
   particles: ParticleView[];
   floaters: FloaterView[];
   glasses: GlassesView[];
-  /** Set by the online transport; absent in the local wasm build. */
-  online?: boolean;
   connection?: 'connecting' | 'online' | 'offline' | 'spectating' | 'error';
 }
 

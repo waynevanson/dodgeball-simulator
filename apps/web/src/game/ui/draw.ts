@@ -33,7 +33,7 @@ export function drawUi(
     }
   }
 
-  if (showingTopBar(frame, ui)) drawTopBar(ctx, ui, frame);
+  if (showingTopBar(frame, ui)) drawTopBar(ctx, ui);
   if (showingControls(frame, ui, input)) drawTouchControls(ctx, input);
   if (input.usingTouch && isPortrait() && !ui.portraitOk) drawRotate(ctx, ui);
 }

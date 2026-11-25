@@ -38,8 +38,7 @@ pub struct PlayerTagOut {
     pub owner: Option<u64>,
     pub is_human: bool,
     /// Presentation-only "this is the local player's character" flag. The
-    /// offline build sets it from `is_human`; the online bridge recomputes it
-    /// from the local participant's owner id.
+    /// online bridge sets it from the local participant's owner id.
     pub is_you: bool,
     pub glasses: bool,
 }

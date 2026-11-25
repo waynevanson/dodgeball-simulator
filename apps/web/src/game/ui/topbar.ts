@@ -3,11 +3,10 @@ import { TAU } from '../math';
 import { topLayout } from './hit';
 import { INK } from './state';
 import type { UiState } from './state';
-import type { Frame } from '../frame';
 
-export function drawTopBar(ctx: CanvasRenderingContext2D, ui: UiState, frame: Frame): void {
+export function drawTopBar(ctx: CanvasRenderingContext2D, ui: UiState): void {
   for (const spot of topLayout()) {
-    if (frame.online && spot.id === 'pause') continue;
+    if (spot.id === 'pause') continue;
     const cx = spot.rect.x + spot.rect.w / 2;
     const cy = spot.rect.y + spot.rect.h / 2;
     const hot = ui.hover === spot.id;

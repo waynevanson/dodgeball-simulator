@@ -7,7 +7,6 @@ import type { Identity } from 'spacetimedb';
 import { playSfxEvents, type RawSfxEvent } from './audio/events';
 import type { Frame, HudPlayerView, PlayerView, BallView } from './frame';
 import type { InputFrame } from './input';
-import type { DifficultyId } from './types';
 import type { Commands } from './ui/actions';
 
 const TOKEN_SUFFIX = '/auth_token';
@@ -78,7 +77,6 @@ function emptyFrame(name: string, slot: number): Frame {
     particles: [],
     floaters: [],
     glasses: [],
-    online: true,
     connection: 'connecting',
   };
 }
@@ -131,9 +129,8 @@ function blend(from: Frame, to: Frame, t: number): Frame {
 }
 
 /**
- * SpacetimeDB transport. It keeps the same command surface as the offline wasm
- * bridge, so `main.ts`, the renderer and the canvas UI do not need to know
- * whether the simulation is local or remote.
+ * SpacetimeDB transport. It implements the UI command surface so `main.ts`,
+ * the renderer and the canvas UI stay independent of the transport.
  */
 export class OnlineBridge implements Commands {
   readonly #settings: OnlineSettings;
@@ -187,11 +184,7 @@ export class OnlineBridge implements Commands {
     // The match continues; the result screen offers a rematch.
   }
 
-  setDifficulty(_id: DifficultyId): void {
-    // The server owns the match difficulty.
-  }
-
-  setLineup(_slot: number, name: string): void {
+  setName(name: string): void {
     this.#settings.playerName = name.trim().slice(0, 12) || 'Player';
     this.#placeholder.lineup.customName = this.#settings.playerName;
     this.#latest.lineup.customName = this.#settings.playerName;
@@ -448,8 +441,7 @@ export class OnlineBridge implements Commands {
         humanSlot: this.#me?.slot ?? frame.lineup.humanSlot,
         customName: this.#settings.playerName,
       },
-      online: true,
-      connection: this.#state,
+        connection: this.#state,
     };
   }
 }

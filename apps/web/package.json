@@ -6,16 +6,13 @@
   "description": "Canvas presentation, input and audio for the dodgeball simulator",
   "scripts": {
     "dev": "vite",
-    "dev:offline": "vite --mode offline",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "@waynevanson/unplugin-cargo": "https://github.com/waynevanson/unplugin-cargo/releases/download/0.2.1/waynevanson-unplugin-cargo-0.2.1.tgz",
     "typescript": "^5.7.2",
-    "vite": "^6.0.5",
-    "vite-plugin-wasm": "^3.5.0"
+    "vite": "^6.0.5"
   },
   "dependencies": {
     "spacetimedb": "2.16.1"

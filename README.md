@@ -8,13 +8,13 @@ bring a teammate back in, live-ball blocking, and a ten-second advantage clock.
 
 ![Gameplay](docs/screenshot.png)
 
-- 6v6 with AI teammates and opponents, three difficulty levels
-- Pick your player from the blue lineup or enter a custom name for the sixth slot
+- 6v6 with AI teammates and opponents
+- Custom display name; teams are auto-balanced and empty slots are AI-filled
 - Norris wears glasses; hit him and he yells **HEADSHOT** as they fly off
 - Mouse + keyboard on desktop, on-screen stick + buttons on phones
-- **Rust ECS simulation** compiled to WebAssembly, Canvas 2D presentation in TypeScript
+- **Rust ECS simulation** inside SpacetimeDB, Canvas 2D presentation in TypeScript
 - Canvas 2D rendering for the whole game *and* the interface — no DOM widgets
-- WebAudio sound effects, zero external assets, zero runtime JavaScript dependencies
+- WebAudio sound effects and zero external assets
 - Match/round flow modelled as **ECS state** — a `phase` resource plus a transition table
 - Deterministic, seeded simulation: `cargo test` drives full matches headlessly
 
@@ -31,7 +31,6 @@ bring a teammate back in, live-ball blocking, and a ten-second advantage clock.
 | Hold **LMB** | Charge a throw, release to fire |
 | `Shift` | Dash |
 | `Space` / **RMB** | Catch (empty hands) / block (ball in hand) |
-| `Esc` / `P` | Pause |
 | `M` | Mute |
 
 ### Mobile
@@ -42,7 +41,7 @@ Rotate the phone to landscape, then:
 - **THROW** – hold to charge, release to throw (auto-aims at the nearest opponent)
 - **DASH** – dash in the stick direction
 - **CATCH** – catch or block
-- **Pause / fullscreen / sound** – top-right
+- **Fullscreen / sound** – top-right
 
 ### The set in one paragraph
 
@@ -113,32 +112,29 @@ Three packages with one presentation boundary:
 
 | Package | Owns |
 | --- | --- |
-| `crates/sim` (Rust → wasm + native) | ECS, rules, physics, AI, match flow, effects, HUD view model |
-| `crates/server` (SpacetimeDB module) | Authoritative online tick, input validation, persistence, replication |
+| `crates/sim` (Rust library) | ECS, rules, physics, AI, match flow, effects, HUD view model |
+| `crates/server` (SpacetimeDB module) | Authoritative tick, input validation, persistence, replication |
 | `apps/web` (TypeScript) | Canvas 2D rendering, canvas UI, input, WebAudio, settings |
 
-The offline build runs `crates/sim` in the browser. The online build runs the same crate inside the SpacetimeDB module and replaces the transport with `apps/web/src/game/online.ts`; the renderer and canvas UI consume the identical `Frame` in both modes.
-
-The Rust side never touches a canvas or WebAudio. Each frame the browser calls
-`Game.tick(dt, input)`, receives a **snapshot** (plain objects for players,
-balls, particles, floaters, glasses and the HUD), and plays the **sound events**
-the simulation emitted.
+The simulation runs inside the SpacetimeDB module. The browser no longer runs a
+local copy of the world: it sends an `InputFrame` through a reducer, subscribes
+to the public `frame_state` snapshot, and plays sound events from the transient
+`game_event` table.
 
 ```
-     input                      snapshot                    Canvas 2D
-  ┌──────────┐   tick(dt)   ┌──────────────┐   render   ┌────────────┐
-  │ apps/web │ ───────────▶ │  crates/sim  │ ─────────▶ │ apps/web   │
-  │  Input   │              │  ECS + rules │            │ renderer   │
-  └──────────┘ ◀─────────── └──────────────┘            └────────────┘
-                 SfxEvent[]
+  browser input                  reducer call                 SpacetimeDB module
+┌──────────────┐  setInput(JSON)  ┌──────────────────┐  scheduled 50ms  ┌──────────────┐
+│ apps/web     │ ───────────────▶ │ player_input     │ ───────────────▶ │ crates/sim   │
+│ Canvas 2D    │                  │ private table    │                  │ ECS + rules  │
+│ renderer/UI  │ ◀─────────────── │ frame_state      │ ◀─────────────── │ game::tick   │
+└──────────────┘  subscription    │ game_event       │                  └──────────────┘
+                                  └──────────────────┘
 ```
 
-In the offline build only four things cross the wasm boundary:
-
-1. `Game::new(seed, difficulty, humanSlot, customName)`
-2. `Game::tick(dt, inputFrame) -> Frame`
-3. commands: `startMatch`, `pause`, `resume`, `toMenu`, `setDifficulty`, `setLineup`
-4. `Game::takeEvents() -> SfxEvent[]`
+The Rust side never touches a canvas or WebAudio. Each tick produces a **Frame**
+snapshot (players, balls, particles, floaters, glasses and HUD data) and
+`SfxEvent` values. The server publishes the frame and copies sound events into
+an event table; the browser renders the frame and plays the sounds locally.
 
 ### The Rust ECS
 
@@ -156,7 +152,7 @@ component types.
 
 The simulation is deterministic for a given seed. The RNG is a seeded
 SplitMix64 (`rng.rs`), with no `getrandom` and no platform entropy, so native
-tests and browser matches can be replayed.
+tests and server-side matches can be replayed.
 
 ### Match flow
 
@@ -180,7 +176,7 @@ flow step claims it on the next tick.
 
 ### The frame
 
-`game::tick` runs the old update schedule in Rust, in order:
+`game::tick` runs the update schedule in Rust, in order:
 
 | Step | Job |
 | --- | --- |
@@ -190,11 +186,11 @@ flow step claims it on the next tick.
 | `update_effects` | age particles, floaters and glasses |
 | `World::frame` | build the presentation snapshot |
 
-Audio calls became `SfxEvent` values: `throw`, `hit`, `headshot`, `catch`,
+Audio calls become `SfxEvent` values: `throw`, `hit`, `headshot`, `catch`,
 `block`, `pickup`, `bounce`, `dash`, `beep`, `whistle`, `roundWin`, `roundLose`,
-`matchWin`, `matchLose`, `ui`. The TypeScript bridge maps them onto `Sfx`.
-Phase changes, shake, slow motion and confetti stay in the simulation; the
-canvas just draws the result.
+`matchWin`, `matchLose`, `ui`. The server writes them to `game_event`; the
+browser maps them onto `Sfx`. Phase changes, shake, slow motion and confetti
+stay in the simulation; the canvas just draws the result.
 
 ### Repository layout
 
@@ -202,37 +198,40 @@ canvas just draws the result.
 Cargo.toml                     # Cargo workspace (members = crates/*)
 rust-toolchain.toml            # stable + wasm32-unknown-unknown
 crates/
-└── sim/                       # Rust simulation core
+├── sim/                       # Rust simulation core
+│   ├── Cargo.toml
+│   ├── src/
+│   │   ├── lib.rs
+│   │   ├── world.rs           # World: component sets + resources
+│   │   ├── ecs.rs             # entities, sparse sets, allocator
+│   │   ├── components.rs      # Player, Ball, Particle, Floater, Glasses
+│   │   ├── resources.rs       # Clock, SetState, Shot, Queues, InputFrame …
+│   │   ├── constants.rs       # court, physics, rules, roster, difficulty
+│   │   ├── types.rs           # Team, Phase, Trigger, SfxEvent, Score
+│   │   ├── math.rs, rng.rs
+│   │   ├── snapshot.rs        # serde structs for the frame
+│   │   └── game/
+│   │       ├── mod.rs         # tick order
+│   │       ├── flow.rs        # phase transition table
+│   │       ├── ai.rs          # target choice, threats, dodging
+│   │       ├── effects.rs     # particles, floaters, glasses, confetti
+│   │       ├── spawn.rs       # match/set/formation setup
+│   │       └── sim/           # player, ball, throwing, contacts, out, rules
+│   └── tests/                 # headless match + flow tests
+└── server/                    # SpacetimeDB module
     ├── Cargo.toml
-    ├── src/
-    │   ├── lib.rs
-    │   ├── wasm.rs            # the only wasm-bindgen surface
-    │   ├── world.rs           # World: component sets + resources
-    │   ├── ecs.rs             # entities, sparse sets, allocator
-    │   ├── components.rs      # Player, Ball, Particle, Floater, Glasses
-    │   ├── resources.rs       # Clock, SetState, Shot, Queues, InputFrame …
-    │   ├── constants.rs       # court, physics, rules, roster, difficulty
-    │   ├── types.rs           # Team, Phase, Trigger, SfxEvent, Score
-    │   ├── math.rs, rng.rs
-    │   ├── snapshot.rs        # serde structs for the browser frame
-    │   └── game/
-    │       ├── mod.rs         # tick order
-    │       ├── flow.rs        # phase transition table
-    │       ├── ai.rs          # target choice, threats, dodging
-    │       ├── effects.rs     # particles, floaters, glasses, confetti
-    │       ├── spawn.rs       # match/set/formation setup
-    │       └── sim/           # player, ball, throwing, contacts, out, rules
-    └── tests/                 # headless match + flow tests
+    └── src/lib.rs             # tables, reducers, scheduled tick, replication
 apps/
 └── web/                       # Vite app
     ├── index.html
-    ├── vite.config.ts         # unplugin-cargo + vite-plugin-wasm
-    ├── tsconfig.json          # allowArbitraryExtensions for the .rs import
+    ├── vite.config.ts
     └── src/
         ├── main.ts            # settings, input, rAF loop, shortcuts
         ├── styles/global.css  # page chrome only
+        ├── module_bindings/   # generated SpacetimeDB client bindings
         └── game/
-            ├── bridge.ts      # Game + InputFrame + SfxEvent mapping
+            ├── online.ts      # SpacetimeDB transport, interpolation, reconnect
+            ├── audio/events.ts# shared sound-event player
             ├── frame.ts       # snapshot types + Hud
             ├── queries.ts     # players/balls/human/carriedBall over a Frame
             ├── input.ts       # keyboard, pointer, touch, InputFrame
@@ -240,25 +239,16 @@ apps/
             ├── constants/     # presentation copies of court/rules/roster
             ├── renderer/      # court, players, balls, fx, HUD, banners
             ├── ui/            # canvas menus, hit-testing, touch controls
-            ├── audio/         # WebAudio synth + speech
-            └── systems/render.ts
+            └── audio/         # WebAudio synth + speech
 ```
-
-`crates/sim/src/lib.rs.d.ts` is generated by `wasm-bindgen` through
-`unplugin-cargo`. It is committed so `pnpm typecheck` works from a fresh clone;
-it is refreshed every time the crate is built.
-
----
-
----
 
 ## Multiplayer (SpacetimeDB)
 
 Online play is server-authoritative. The Rust simulation runs inside a
 SpacetimeDB module (`crates/server`) at 20 ticks per second; browsers send their
 latest input and render snapshots received from the database. Local development
-is configured for SpacetimeDB in `apps/web/.env.development`; production
-builds without a SpacetimeDB URI still use the browser-only WASM simulation.
+is configured for SpacetimeDB in `apps/web/.env.development`; builds without an
+explicit URI default to `ws://localhost:3000`.
 
 ### What the module does
 
@@ -305,8 +295,6 @@ so keep `spacetime start` running. During development, pass `-c always` (or use
 `--delete-data=always` when publishing manually) if you change the persisted
 `World` layout; the private state is a versioned blob inside `sim_state`.
 
-Use `pnpm dev:offline` when you explicitly want the browser-only WASM build.
-
 Open two browser windows and both will join the same arena. Vite binds to
 localhost by default; for another device, run the client with `--host`
 (`pnpm --filter @dodgeball/web dev -- --host`) and set
@@ -328,7 +316,8 @@ spacetime publish <your-database-name> -s maincloud --bin-path target/wasm32-unk
 Set `VITE_SPACETIME_URI=wss://maincloud.spacetimedb.com` and
 `VITE_SPACETIME_DB=<your-database-name>`, then build. On GitHub Pages, set the
 repository variables `SPACETIME_URI` and `SPACETIME_DB`; the deploy workflow
-passes them to Vite. With either variable unset the page stays in offline mode.
+passes them to Vite. Set both for any deployed client; otherwise it tries
+`ws://localhost:3000`.
 
 SpacetimeDB is a transactional database, not a UDP game socket. The 20 Hz tick
 plus client-side interpolation keeps a casual 6v6 game playable, but budget for
@@ -344,7 +333,7 @@ Also stop the tick when no humans are connected — the module already does this
 | `crates/server/src/lib.rs` | Tables, scheduled tick, join/input/leave/start reducers |
 | `apps/web/src/module_bindings/` | Generated TypeScript client bindings (committed) |
 | `apps/web/src/game/online.ts` | SpacetimeDB transport, input throttling, interpolation |
-| `apps/web/src/game/audio/events.ts` | Shared sound-event player for offline and online |
+| `apps/web/src/game/audio/events.ts` | SpacetimeDB sound-event player |
 | `apps/web/src/game/frame.ts` | `Frame` snapshot, including owner/`isYou` |
 
 ## Development
@@ -353,18 +342,15 @@ Requires:
 
 - **Node 20+** and **pnpm 10** (pinned via `packageManager`)
 - **Rust 1.97.1** (pinned in `rust-toolchain.toml`) with the `wasm32-unknown-unknown` target
-- **SpacetimeDB CLI 2.16.1** for local and online play (the Rust module and npm client are pinned to the same version)
-- **`wasm-bindgen-cli` 0.2.121**, matching the pinned `wasm-bindgen` crate
+- **SpacetimeDB CLI 2.16.1**, matching the module crate and npm client
+- **binaryen 129** optionally, for optimized SpacetimeDB modules (SpacetimeDB 2.16 cannot parse binaryen 133 output; it falls back to an unoptimised module if `wasm-opt` is absent)
 
 ```bash
-# Option A: Nix (Rust, wasm32 target, wasm-bindgen-cli, binaryen 129)
+# Option A: Nix (Rust, wasm32 target, binaryen 129)
 nix develop
 
-# Option B: rustup
+# Option B: rustup + system SpacetimeDB CLI
 rustup target add wasm32-unknown-unknown
-cargo install -f wasm-bindgen-cli --version 0.2.121
-# Optional: binaryen 129 for optimised SpacetimeDB modules
-# (SpacetimeDB 2.16 cannot parse binaryen 133 output).
 ```
 
 Then, in either shell:
@@ -372,44 +358,35 @@ Then, in either shell:
 ```bash
 pnpm install
 pnpm dev         # SpacetimeDB dev loop + Turbo/Vite (requires spacetime start)
-pnpm dev:offline # browser-only WASM build
 pnpm dev:client  # only the Vite client, through Turbo (used by spacetime dev)
 pnpm typecheck   # turbo run typecheck
 pnpm rust:test   # headless ECS/rules/flow tests
-pnpm build       # turbo run build (cargo wasm + typecheck + Vite)
+pnpm build       # turbo run build (typecheck + Vite)
 pnpm preview     # serve the production build through Turbo
 pnpm check       # Turbo typecheck + rust tests + wasm check
 ```
 
 Turborepo owns task execution (`turbo.json`): `build`, `typecheck`, `preview`,
-`dev:client` and `dev:offline` go through `turbo run`. `pnpm dev` is the
-exception because SpacetimeDB owns the server-side dev loop and invokes the
-Turbo-powered `dev:client` task through `spacetime.json`.
+and `dev:client` go through `turbo run`. `pnpm dev` is the exception because
+SpacetimeDB owns the server-side dev loop and invokes the Turbo-powered
+`dev:client` task through `spacetime.json`.
 
-**unplugin-cargo.** The Vite plugin compiles `crates/sim/src/lib.rs` to wasm,
-runs `wasm-bindgen`, generates the glue and watches the crate's `Cargo.toml`,
-workspace `Cargo.lock`, `build.rs` and `.rs` files. The package is not published
-to npm; it is installed from the prebuilt GitHub Release tarball, as documented
-upstream:
-
-```json
-"@waynevanson/unplugin-cargo": "https://github.com/waynevanson/unplugin-cargo/releases/download/0.2.1/waynevanson-unplugin-cargo-0.2.1.tgz"
-```
-
-The tarball ships `dist`, so there is no install-time build step. The Vite
-config enables the crate's `wasm` feature.
-
-Vite uses a relative `base`, so the build works at any path (including
-`https://<user>.github.io/dodgeball-simulator/`).
+The Vite app imports generated SpacetimeDB bindings from
+`apps/web/src/module_bindings`. Run `pnpm module:generate` after changing the
+server's tables or reducers. Vite uses a relative `base`, so the build works at
+any path (including `https://<user>.github.io/dodgeball-simulator/`).
 
 ---
 
 ## Deployment
 
-`.github/workflows/deploy.yml` installs Rust with the wasm target and
-`wasm-bindgen-cli`, installs with pnpm, runs the typecheck, the Rust tests and
-the Vite build, then publishes `apps/web/dist` to GitHub Pages on every push to
-`main`.
+`.github/workflows/deploy.yml` installs Rust, installs with pnpm, runs the
+typecheck, the Rust tests and the Vite build, then publishes `apps/web/dist` to
+GitHub Pages on every push to `main`.
+
+The deployed client needs both `SPACETIME_URI` and `SPACETIME_DB` repository
+variables pointing at a published module. Without them the client defaults to
+`ws://localhost:3000`, which is only useful for local previews.
 
 One-time setup: **Settings → Pages → Build and deployment → Source: GitHub
 Actions**. No branch or folder needs to be configured.

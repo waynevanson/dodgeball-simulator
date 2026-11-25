@@ -9,10 +9,10 @@ import type { UiState } from './state';
 
 // --------------------------------------------------------------------- input
 
-export function commitName(frame: Frame, ui: UiState, commands: Commands): void {
+export function commitName(ui: UiState, commands: Commands): void {
   if (!ui.editingName) return;
   ui.editingName = false;
-  commands.setLineup(frame.lineup.humanSlot, ui.draft);
+  commands.setName(ui.draft);
   ui.dirty = true;
 }
 
@@ -27,7 +27,7 @@ export function updateUi(frame: Frame, ui: UiState, input: Input, commands: Comm
       if (ui.draft.length < PLAYER_NAME_MAX) ui.draft += char;
     }
     if (input.pressed('Backspace')) ui.draft = ui.draft.slice(0, -1);
-    if (input.pressed('Enter') || input.pressed('Escape')) commitName(frame, ui, commands);
+    if (input.pressed('Enter') || input.pressed('Escape')) commitName(ui, commands);
   }
 
   ui.hover = null;
@@ -39,7 +39,7 @@ export function updateUi(frame: Frame, ui: UiState, input: Input, commands: Comm
     if (sample.button !== 0) continue;
     const spot = hit(frame, ui, input, sample.x, sample.y);
     if (!spot) {
-      commitName(frame, ui, commands);
+      commitName(ui, commands);
       continue;
     }
 

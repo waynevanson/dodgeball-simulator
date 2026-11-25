@@ -7,19 +7,10 @@ license.workspace = true
 authors.workspace = true
 
 [lib]
-crate-type = ["cdylib", "rlib"]
-
-[features]
-default = []
-# The browser wrapper is the only part that needs wasm-bindgen. The same
-# crate is also compiled into the SpacetimeDB server module, which targets
-# wasm32 but must not link the browser bindings.
-wasm = ["dep:wasm-bindgen", "dep:serde-wasm-bindgen"]
+crate-type = ["rlib"]
 
 [dependencies]
 serde.workspace = true
-wasm-bindgen = { workspace = true, optional = true }
-serde-wasm-bindgen = { workspace = true, optional = true }
 
 [dev-dependencies]
 bincode.workspace = true

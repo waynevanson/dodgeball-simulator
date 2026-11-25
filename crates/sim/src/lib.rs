@@ -1,9 +1,9 @@
 //! Deterministic dodgeball simulation core.
 //!
 //! The crate owns the ECS, the rules, the AI and the match flow. It knows
-//! nothing about canvases or WebAudio: the browser layer calls [`game::tick`],
-//! reads a [`snapshot::Frame`], and plays the sound events the simulation
-//! emits. The same code runs natively under `cargo test`.
+//! nothing about canvases or WebAudio: the SpacetimeDB module calls
+//! [`game::tick`], stores a [`snapshot::Frame`] for subscribers, and writes
+//! sound events to an event table. The same code runs natively under `cargo test`.
 
 pub mod components;
 pub mod constants;
@@ -15,9 +15,3 @@ pub mod rng;
 pub mod snapshot;
 pub mod types;
 pub mod world;
-
-#[cfg(feature = "wasm")]
-mod wasm;
-
-#[cfg(feature = "wasm")]
-pub use wasm::Game;
