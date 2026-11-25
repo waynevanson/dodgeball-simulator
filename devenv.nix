@@ -16,6 +16,11 @@ let
   binaryen129 = (import inputs.nixpkgs-binaryen { inherit system; }).binaryen;
 in
 {
+  imports = [ ./nix/spacetime.nix ];
+
+  # `devenv up` starts the local SpacetimeDB server on port 3000.
+  services.spacetime.enable = true;
+
   packages = [
     pkgs.nodejs_22
     pkgs.pnpm
@@ -27,9 +32,7 @@ in
     pkgs.systemd
     rust
     binaryen129
-    # SpacetimeDB: install the CLI matching `spacetimedb` in Cargo.toml.
-    # nixpkgs currently ships an older CLI; the module and Rust client SDK are
-    # pinned to 2.16.3. Use the upstream installer or publish with
-    # `--bin-path target/wasm32-unknown-unknown/release/dodgeball_server.wasm`.
+    # The SpacetimeDB CLI and standalone server come from services.spacetime,
+    # pinned to the crate version in Cargo.toml.
   ];
 }

@@ -203,7 +203,9 @@ server-authoritative.
 
 ### Local online play
 
-Install the SpacetimeDB CLI matching the crate version (2.16.3), then:
+The dev shell provides the SpacetimeDB CLI 2.16.3 pinned in `Cargo.toml`.
+`devenv up` starts the local server on port 3000 (see `nix/spacetime.nix`). If
+you prefer to run the server in its own terminal:
 
 ```bash
 # Terminal 1: local SpacetimeDB server

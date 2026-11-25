@@ -36,7 +36,12 @@
       devShells = forAllSystems (
         system:
         let
-          pkgs = nixpkgs.legacyPackages.${system};
+          # SpacetimeDB is distributed under the Business Source License.
+          # Allow only that package, leaving the rest of nixpkgs unfree-free.
+          pkgs = import nixpkgs {
+            inherit system;
+            config.allowUnfreePredicate = pkg: nixpkgs.lib.getName pkg == "spacetimedb";
+          };
         in
         {
           default = devenv.lib.mkShell {
