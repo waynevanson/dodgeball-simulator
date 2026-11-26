@@ -160,7 +160,7 @@ fn enter_phase(world: &mut World, phase: Phase) {
     }
 
     // Presentation-facing side effects (sound, shake, confetti) travel as
-    // ordinary events so the TypeScript layer can play them.
+    // ordinary events so the client layer can play them.
     let (last_set_winner, match_winner, score) =
         (world.match_state.last_set_winner, world.match_state.match_winner, world.match_state.score);
 

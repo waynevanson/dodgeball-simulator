@@ -171,7 +171,7 @@ pub fn celebrate(world: &mut World, winner: crate::types::Team) {
     }
 }
 
-/// Age and retire every effect entity. Mirrors `effects/update.ts`.
+/// Age and retire every effect entity.
 pub fn update_effects(world: &mut World, dt: f64) {
     let particles = world.particles.entities();
     for entity in &particles {

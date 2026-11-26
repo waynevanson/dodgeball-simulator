@@ -1,6 +1,6 @@
 /*
  * Page chrome only. Everything inside the arena — menus, HUD, touch controls —
- * is drawn on the canvas by src/game/ui.ts, so there are no widgets or CSS
+ * is drawn on the canvas by the wasm client, so there are no widgets or CSS
  * classes for game state.
  */
 

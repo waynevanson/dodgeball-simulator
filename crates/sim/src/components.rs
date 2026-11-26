@@ -130,7 +130,7 @@ pub struct PlayerTag {
     pub glasses: bool,
 }
 
-/// One player. In the TypeScript build this was ten separate components; the
+/// One player. In the original implementation this was ten components; the
 /// component set is fixed per entity kind, so Rust keeps it as one owned value
 /// and the ECS still stores and queries players as entities.
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]

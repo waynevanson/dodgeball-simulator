@@ -148,7 +148,7 @@ impl Default for MatchState {
     }
 }
 
-/// One frame of human input, assembled by the TypeScript input layer.
+/// One frame of human input, assembled by the client input layer.
 #[derive(Clone, Copy, Debug, Default, serde::Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
 pub struct InputFrame {

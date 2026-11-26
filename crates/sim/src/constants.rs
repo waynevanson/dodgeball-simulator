@@ -1,5 +1,5 @@
 //! Every physical constant the rules depend on, in the same 1280x720 logical
-//! space the canvas uses.
+//! space the renderer uses.
 
 
 pub const VIEW_W: f64 = 1280.0;

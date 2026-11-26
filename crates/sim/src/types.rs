@@ -178,8 +178,8 @@ impl Score {
     }
 }
 
-/// Sounds are emitted by the simulation and consumed by the TypeScript layer,
-/// so the Rust core never touches WebAudio.
+/// Sounds are emitted by the simulation and consumed by the client layer, so
+/// the Rust core never touches an audio backend.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", tag = "type", content = "value")]
 pub enum SfxEvent {

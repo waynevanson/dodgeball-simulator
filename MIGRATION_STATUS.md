@@ -1,7 +1,6 @@
 # Rust/Bevy migration status — paused
 
-Last updated: after restoring generated sound effects and migrating the dev
-shell to devenv.
+Last updated: after the input/UI, release and desktop-packaging cleanup pass.
 
 ## Goal
 
@@ -167,53 +166,86 @@ SpacetimeDB module in `crates/server`.
   remain: `DODGEBALL_AUTOSTART`, `DODGEBALL_SCREENSHOT`, `?autostart=1`,
   `DODGEBALL_LOG_EVENTS`, `window.__dodgeball`, `RUST_LOG=debug`.
 
+### Input, UI and tests
+
+- Browser fullscreen now uses the Fullscreen API (`documentElement.requestFullscreen`
+  / `exitFullscreen`) through `platform::toggle_fullscreen`; native builds keep
+  the Bevy `WindowMode` toggle.
+- Player-name editing supports `Ime::Preedit`/`Ime::Commit`, enables
+  `Window::ime_enabled` only while editing, and shows the in-progress
+  composition. Enter/Escape/Backspace logic is a testable helper.
+- Starting, resuming or returning to the menu commits an in-progress name and
+  sends `set_name`, matching the old client's behaviour.
+- Input design coordinates now subtract the letterbox offset and divide by the
+  uniform scale, so mouse aim and touch hit testing agree with the fixed 1280x720
+  camera on non-16:9 surfaces.
+- Added tests for:
+  - CSS colour parsing and malformed fallbacks;
+  - snapshot blend/extrapolation, `clean_name` and `isYou` decoration;
+  - keyboard movement/dash/catch mapping and edit-mode suppression;
+  - Enter/Escape/Backspace/IME name editing through real Bevy messages;
+  - touch hit testing, stick clamping and letterboxed coordinate mapping;
+  - UI clock formatting.
+
+### Build / release / packaging
+
+- `pnpm build` (and the deploy workflow) now builds wasm once; the separate
+  `pnpm typecheck` step and the double build are gone.
+- Added a `wasm-release` Cargo profile (`inherits = "release"`, `opt-level =
+  "z"`) and made it the default for `scripts/build-web-wasm.sh`. Native release
+  keeps `opt-level = "s"`.
+- `scripts/build-web-wasm.sh` maps `PROFILE=dev` to `debug/` for fast local
+  builds.
+- `crates/client-bindings` now uses generated `src/mod.rs` as its crate root.
+  `pnpm module:generate` no longer needs the `mv` step. `spacetime.json` has a
+  Rust `generate` target writing to `crates/client-bindings/src`, so
+  `spacetime dev` regenerates the crate in place.
+- `pnpm module:generate` and `pnpm module:publish` run with `--yes`.
+- Added `scripts/package-desktop.sh`: Linux tar.gz with `.desktop` + icon, an
+  unsigned macOS `.app` zip, and a Windows zip. The desktop workflow uploads
+  those archives instead of bare binaries.
+- Windows release builds use the `windows` subsystem so no console window
+  appears.
+- Added committed smoke tests:
+  - `pnpm smoke:browser` launches headless Chromium over CDP and verifies the
+    debug handle plus audio `suspended` → `running` after a gesture;
+  - `pnpm smoke:native` runs the desktop client with `DODGEBALL_SCREENSHOT` and
+    checks that a PNG is produced.
+
 ### Verification performed
 
-- `cargo test --workspace` — all tests pass, including 8 client tests for the
-  synth, voice bank and input prediction.
+- `cargo test --workspace` — all tests pass. The client crate has 30 unit tests
+  covering audio, keyboard/touch input, snapshot interpolation, colour parsing,
+  name editing/IME and layout maths.
+- `pnpm check` — typecheck, Rust tests and the wasm check pass.
 - `cargo check -p dodgeball-client-web --target wasm32-unknown-unknown` —
-  passes with Bevy audio enabled.
+  passes with Bevy audio and the web fullscreen/speech bindings.
 - `cargo check -p dodgeball-client -p dodgeball-client-desktop` — passes.
-- `apps/web` `tsc --noEmit` — passes once the wasm glue exists (the dev shell
-  now provides the matching `wasm-bindgen`).
-- Dev-profile wasm build + Vite + headless Chromium rendered the menu with the
-  audio plugin initialised (`/tmp/menu-audio.png`). No SpacetimeDB server was
-  running, so the connection showed the expected `ONLINE | ERROR` state.
-- Native builds on this machine needed `NIX_CFLAGS_LINK=` cleared because the
+- `apps/web` `tsc --noEmit` — passes with the generated wasm glue.
+- `pnpm module:generate` — runs non-interactively, regenerates
+  `crates/client-bindings/src/mod.rs` and leaves it as the crate root.
+- `pnpm dev` (`spacetime dev`) — publishes to the local server, reads the
+  `generate` target from `spacetime.json`, regenerates the Rust bindings in place
+  and starts Vite.
+- `pnpm smoke:browser` — passes against Vite: `AudioContext.state` is
+  `suspended` at startup and `running` after a synthetic click.
+- `pnpm smoke:native` — passes using software Vulkan/llvmpipe and writes the
+  requested screenshot.
+- `scripts/package-desktop.sh` — produces the Linux archive with the binary,
+  `.desktop` entry, icon and README (tested with the debug binary).
+- Latest production wasm (`wasm-release` + `wasm-opt -Oz`):
+  - `apps/web/src/wasm/dodgeball_client_bg.wasm`: ~17.0 MB
+  - Vite gzip report: ~5.3 MB
+  - Vite JS bundle: ~57 KB (plus a ~3 KB loader chunk).
+- The wasm-release profile cut roughly 3.7 MB from the previous release build.
+- Native builds on this machine need `NIX_CFLAGS_LINK=` cleared because the
   host's nix-ld `/usr/lib` symlinks point at glibc 2.42 while the unstable
-  `alsa-lib` needs 2.44. This is a local NixOS environment quirk, not a repo
-  change.
-- `cargo test -p dodgeball-sim -p dodgeball-server` — all tests pass.
-- The new client crates are formatted. Existing simulation files were left in their prior formatting to keep this migration diff focused.
-- `pnpm typecheck` — passes with the generated wasm glue present.
-- Native desktop launched against a local SpacetimeDB server and rendered a
-  playing match (software Vulkan/llvmpipe in this environment).
-- Browser launched headlessly in Chromium against the local server and rendered
-  a playing match.
-- Browser CDP click test successfully started a match.
-- Latest production wasm build:
-  - `apps/web/src/wasm/dodgeball_client_bg.wasm`: ~20.7 MB
-  - Vite gzip report: ~6.5 MB
-  - Vite JS bundle: ~58 KB.
-- Audio added roughly 0.4 MB to the wasm bundle and 0.2 MB gzip
-  (`bevy_audio`, `rodio`, `hound`, `cpal`).
-- Latest successful screenshots:
-  - native playing match: `/tmp/game4.png`;
-  - browser playing match: `/tmp/web_click_final.png`;
-  - browser playing match with audio enabled: `/tmp/game-audio-playing.png`;
-  - `docs/screenshot.png` replaced with the 1280x720 Bevy capture.
-- Browser CDP gesture test against a local server: `AudioContext.state` was
-  `suspended` at startup and became `running` after a synthetic click, while the
-  playing match rendered normally.
-
-### CI / docs
-
-- `.github/workflows/deploy.yml` now installs `wasm-bindgen-cli` 0.2.130.
-- Added `.github/workflows/desktop.yml` matrix for Linux/Windows/macOS native
-  builds.
-- README rewritten for Rust/Bevy, browser + desktop, 2.16.3, and new commands.
-- Added this status file.
-- Replaced the stale Canvas `docs/screenshot.png` with a current Bevy capture.
+  `alsa-lib` needs 2.44. The dev shell now puts the Wayland/xkbcommon/ALSA and
+  Vulkan loader libraries on `LD_LIBRARY_PATH` and exports the NixOS Vulkan ICDs.
+- Historical verification: native desktop and headless browser both rendered a
+  playing match against the local server; browser CDP started a match; the
+  audio-enabled match screenshot is `/tmp/game-audio-playing.png` and
+  `docs/screenshot.png` is a current 1280×720 Bevy capture.
 
 ---
 
@@ -232,9 +264,6 @@ verification and polish rather than implementation:
 - consider a volume control (currently mute/on only) and whether `GlobalVolume`
   should be used for sounds already playing.
 
-Measured wasm cost of audio: ~20.7 MB total / ~6.5 MB gzip, up from ~20.3 MB /
-~6.3 MB before `bevy_audio`.
-
 ### 2. Real-device / real-GPU testing
 
 The current verification used:
@@ -249,104 +278,87 @@ Still needed:
 - native desktop with real Vulkan/Metal/DX12 and real keyboard/mouse;
 - confirm window resize, device pixel ratio and letterboxing on all targets.
 
-### 3. Input / UI coverage
+### 3. Real input/UI validation
 
-- Native mouse activation was not fully validated because X11 injection through
-  `xdotool` did not deliver button presses in this environment. Browser CDP
-  click is verified.
-- Test keyboard movement, dash/catch, name editing, Enter/Escape, and mute via a
-  real keyboard.
-- Test touch stick + simultaneous throw/dash/catch on a real touch device.
-- Test browser fullscreen button; it currently toggles Bevy `WindowMode`, which
-  may not be the browser Fullscreen API.
-- Test IME/text composition for player names.
-- Touch controls are visual only; hit testing is in `input.rs` using design-space
-  coordinates. Verify under non-16:9 aspect ratios.
+The event mapping, name editing/IME, fullscreen target split and touch hit testing
+now have unit/app tests. Still worth checking on real hardware:
 
-### 4. Build / CI / release cleanup
+- keyboard movement, dash/catch and mute with a physical keyboard;
+- touch stick plus simultaneous throw/dash/catch on a real touch device;
+- the browser Fullscreen API on Chrome/Firefox/Safari;
+- IME composition in a real OS input method (the system test covers
+  `Ime::Preedit`/`Ime::Commit`, not the OS integration);
+- non-16:9 letterboxing on actual phones/tablets.
 
-- Verify `.github/workflows/deploy.yml` end-to-end. It currently runs
-  `pnpm typecheck` (which may trigger the wasm build through `pretypecheck`) and
-  then `pnpm build` (which builds wasm again). This can be optimized to build
-  wasm once.
-- Verify `.github/workflows/desktop.yml` on all three runners. Linux needs the
-  listed X11/Wayland/OpenSSL/udev packages; native runtime still needs GPU
-  drivers on user machines.
-- Decide on desktop packaging (icons, `.desktop`, macOS `.app`, Windows
-  installer/console behavior). The workflow currently uploads bare binaries.
-- Pin/verify the generated Rust bindings workflow:
-  - `pnpm module:generate` now uses `--lang rust` and renames `mod.rs` to
-    `lib.rs`;
-  - `spacetime.json` no longer lists TypeScript codegen;
-  - test `spacetime dev` after schema/reducer changes.
-- Check `pnpm check` with the new `rust:check:wasm` package selection.
-- Consider a separate client release profile to keep native Bevy optimized while
-  using `opt-level="z"` for wasm.
+### 4. Release verification
 
-### 5. Code quality / cleanup
+- Run `.github/workflows/deploy.yml` on GitHub and confirm the single-build
+  `pnpm build` flow publishes the wasm client.
+- Run `.github/workflows/desktop.yml` on all three runners and confirm the
+  packaged archives (Linux tar.gz, macOS `.app` zip, Windows zip).
+- The macOS app is unsigned/not notarized and the Windows build is a plain zip;
+  signing/installers remain a product decision.
+- Maincloud still needs its own published module and repository variables.
 
-- `ClientState.dirty_settings` and `UiAction::SubmitName` are unused.
-- `TextKind::BlueName` / `RedName` are not currently spawned.
+### 5. Code quality
+
 - Some UI text is approximate; compare the Bevy HUD/menu against the old Canvas
   screenshot and refine spacing/fonts/colors if desired.
 - Consider moving presentation constants and team palettes into a shared
   presentation crate if other clients/tools need them.
-- Add unit tests for:
-  - CSS colour parser;
-  - snapshot interpolation/blending;
-  - input edge accumulation;
-  - screen/layout calculations.
-- Add committed browser smoke test instead of relying on ad-hoc `/tmp` CDP
-  scripts.
-- Add a native headless/screenshot smoke test if possible.
+- Existing simulation files were left in their prior formatting; run
+  `cargo fmt --all` if the whole workspace should be normalised.
 
 ### 6. Performance / size
 
-- 20.7 MB wasm / 6.5 MB gzip is large. Already enabled only the needed Bevy
-  features, but further pruning may be possible:
+- 17.0 MB wasm / 5.3 MB gzip is still large. Further options:
   - inspect `cargo tree -e features -p dodgeball-client`;
   - consider removing gizmos if dynamic outlines are moved to sprites;
-  - test `wasm-opt` flags and `opt-level="z"` for the client;
   - measure startup time and first-frame time on mobile.
 - Pool sizes: 512 particles, 320 trail sprites, 32 floater texts. Measure on
   low-end devices.
 
 ### 7. Server / environment
 
-- The local test server was installed to `/tmp/spacetime` with
-  `/tmp/spacetime/spacetime --root-dir=/tmp/spacetime`.
-- The published local module is at `http://localhost:3000`, database
-  `dodgeball-simulator`, module version 2.16.3.
+- The local server is provided by devenv (`services.spacetime`, `devenv up`) on
+  `http://localhost:3000`, database `dodgeball-simulator`, CLI/module 2.16.3.
+  `spacetime dev` expects that server to be running.
 - Maincloud deployment still needs its own published module and repository
   variables.
-- Native runtime on NixOS may need `LD_LIBRARY_PATH`/driver setup; this was
-  handled manually during testing but should be documented or solved with a
-  wrapper.
+- Native binaries packaged outside the dev shell still need the target
+  machine's GPU/audio drivers; the dev shell now supplies the Linux
+  Wayland/xkbcommon/ALSA/Vulkan loader runtime libraries.
 
 ---
 
 ## Useful commands from the working session
 
 ```bash
-# Native build/check (inside Nix dependency shell)
+# Native build/check (inside the devenv shell)
 cargo build -p dodgeball-client-desktop
 cargo check -p dodgeball-client
-cargo test -p dodgeball-sim -p dodgeball-server
+cargo test --workspace
 
-# Wasm check
+# Wasm check and browser build
 cargo check -p dodgeball-client-web --target wasm32-unknown-unknown
+pnpm web:wasm                 # wasm-release profile, size optimised
+PROFILE=dev pnpm web:wasm     # fast local build
+pnpm build
 
-# Browser wasm + Vite
-PROFILE=dev bash scripts/build-web-wasm.sh   # fast local builds; default release
-(cd apps/web && pnpm exec vite build)
-(cd apps/web && pnpm exec vite preview --host 127.0.0.1 --port 4173)
+# Module and bindings
+pnpm module:build
+pnpm module:generate          # writes crates/client-bindings/src/mod.rs
 
-# Native smoke test
-DODGEBALL_AUTOSTART=1 DODGEBALL_SCREENSHOT=/tmp/game.png \
-  cargo run -p dodgeball-client-desktop
+# Local development (standalone server from devenv up)
+pnpm dev
 
-# Browser smoke test
-# chromium --headless ... 'http://127.0.0.1:4173/?autostart=1'
+# Smoke tests
+pnpm smoke:browser            # headless Chromium audio/render check
+pnpm smoke:native /tmp/shot.png
+
+# Desktop package for the current OS
+cargo build -p dodgeball-client-desktop --release
+bash scripts/package-desktop.sh
 ```
 
 ## Definition of done still to reach
@@ -355,5 +367,5 @@ DODGEBALL_AUTOSTART=1 DODGEBALL_SCREENSHOT=/tmp/game.png \
   outstanding.
 - Real browser + real desktop input/touch/fullscreen/name editing verified.
 - CI browser and desktop builds are green.
-- No stale Canvas/TypeScript references or dead generated artifacts remain.
+- No stale executable Canvas/TypeScript code or dead generated artifacts remain.
 - A human can run both targets from a clean checkout using documented commands.

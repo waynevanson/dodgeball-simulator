@@ -1,7 +1,7 @@
 use wasm_bindgen::prelude::*;
 
-/// Browser entry point. Vite passes the same configuration the old TypeScript
-/// client read from `VITE_SPACETIME_*`.
+/// Browser entry point. Vite passes the same configuration the web shell reads from
+/// `VITE_SPACETIME_*`.
 #[wasm_bindgen]
 pub fn start(uri: &str, database: &str, player_name: &str, muted: bool, autostart: bool) {
     console_error_panic_hook::set_once();

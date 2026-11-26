@@ -220,11 +220,16 @@ spacetime start
 
 # Terminal 2: build/publish the module and regenerate Rust bindings when needed
 pnpm module:build
+pnpm module:generate
 spacetime publish dodgeball-simulator --bin-path target/wasm32-unknown-unknown/release/dodgeball_server.wasm
 
 # Terminal 3: browser client
 pnpm dev:client
 ```
+
+`pnpm dev` runs `spacetime dev`. `spacetime.json` has a Rust `generate`
+target writing to `crates/client-bindings/src` (crate root `mod.rs`) and a
+`dev.run` command that starts the Vite client.
 
 `spacetime.json` points at `crates/server` and the local server.
 
@@ -263,12 +268,14 @@ pnpm dev:client
 explicitly:
 
 ```bash
-WASM_BINDGEN=/path/to/wasm-bindgen pnpm web:wasm
+pnpm web:wasm            # release-size build (wasm-release profile)
+PROFILE=dev pnpm web:wasm # faster local build
 pnpm build
 ```
 
 The wasm build script is `scripts/build-web-wasm.sh`. It runs `wasm-opt -Oz`
-when available.
+when available and uses the workspace's `wasm-release` profile (`opt-level =
+"z"`).
 
 Browser configuration:
 
@@ -299,6 +306,10 @@ On Linux, the desktop target needs X11/Wayland development libraries, ALSA
 headers (`libasound2-dev` on Debian/Ubuntu) at build time and working GPU/audio
 drivers at runtime. The Nix dev shell includes the build dependencies.
 
+Desktop packages are produced by `scripts/package-desktop.sh`: a tar.gz with
+the binary, `.desktop` entry and icon on Linux, an unsigned `Dodgeball.app` zip
+on macOS, and an executable zip on Windows.
+
 ---
 
 ## Development
@@ -319,9 +330,14 @@ Useful commands:
 | `pnpm dev:client` | Vite dev server for the wasm client |
 | `pnpm web:wasm` | Build wasm glue into `apps/web/src/wasm` |
 | `pnpm module:build` | Build the SpacetimeDB module wasm |
+| `pnpm module:generate` | Regenerate the Rust client bindings |
 | `pnpm rust:test` | Native simulation/server tests |
 | `pnpm desktop` | Run the native Bevy client |
 | `pnpm check` | Typecheck + Rust tests + wasm check |
+| `pnpm lint` | Biome check for the web shell and scripts |
+| `pnpm smoke:browser` | Headless Chromium audio/render smoke test |
+| `pnpm smoke:native` | Native screenshot smoke test |
+| `scripts/package-desktop.sh` | Package the native client for the current OS |
 
 Debugging aids:
 
@@ -348,7 +364,11 @@ crates/
 ├── client-web/           # wasm-bindgen entry point
 └── client-desktop/       # native binary
 apps/web/                 # Vite shell only
+packaging/                # desktop icon and Linux .desktop entry
 scripts/build-web-wasm.sh
+scripts/browser-smoke.mjs
+scripts/native-smoke.sh
+scripts/package-desktop.sh
 ```
 
 ---
@@ -356,8 +376,12 @@ scripts/build-web-wasm.sh
 ## Deployment
 
 `.github/workflows/deploy.yml` installs Rust, pnpm and a matching
-`wasm-bindgen-cli`, runs the typecheck and Rust tests, builds the wasm client and
-publishes `apps/web/dist` to GitHub Pages on every push to `main`.
+`wasm-bindgen-cli`, runs the Rust tests and `pnpm build` (which builds the wasm
+client once, typechecks and bundles Vite), then publishes `apps/web/dist` to
+GitHub Pages on every push to `main`.
+
+`.github/workflows/desktop.yml` builds and packages the native client for
+Linux, macOS and Windows on version tags.
 
 The deployed client needs both `SPACETIME_URI` and `SPACETIME_DB` repository
 variables pointing at a published module.
@@ -367,6 +391,10 @@ dodgeball-client-desktop --release`; see [MIGRATION_STATUS.md](MIGRATION_STATUS.
 for the current CI/packaging follow-ups.
 
 ---
+
+## Licence
+
+MIT. See [LICENSE](LICENSE).
 
 ## Credits
 
