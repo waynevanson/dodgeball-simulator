@@ -42,7 +42,7 @@ jobs:
             pkg-config libssl-dev libxkbcommon-dev libwayland-dev \
             libx11-dev libxcursor-dev libxrandr-dev libxi-dev \
             libxinerama-dev libxfixes-dev libxrender-dev libxext-dev \
-            libudev-dev
+            libudev-dev libasound2-dev
 
       - name: Build desktop client
         run: cargo build -p dodgeball-client-desktop --release

@@ -4,6 +4,7 @@
 //! HUD, menus, input handling and the SpacetimeDB connection. The browser and
 //! desktop crates are thin entry points around this library.
 
+pub mod audio;
 pub mod color;
 pub mod consts;
 pub mod input;
@@ -64,6 +65,7 @@ pub fn run(config: ClientConfig) {
             Startup,
             (
                 render::setup_textures,
+                audio::setup_audio,
                 render::setup_camera,
                 render::setup_world,
                 render::setup_effect_pools,
@@ -91,6 +93,7 @@ pub fn run(config: ClientConfig) {
                 .before(net::send_input),
         )
         .add_systems(Update, debug_screenshot)
+        .add_systems(Update, audio::cleanup_stale_sfx)
         .add_systems(
             Update,
             (

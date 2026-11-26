@@ -12,6 +12,9 @@ use dodgeball_bindings::{
     ParticipantTableAccessor, RemoteModule,
 };
 use dodgeball_sim::resources::InputFrame;
+use dodgeball_sim::types::SfxEvent;
+
+use crate::audio::SoundBank;
 
 use crate::input::InputState;
 use crate::model::{ClientState, ConnectionState};
@@ -249,12 +252,20 @@ fn log_subscriptions(
     }
 }
 
-fn read_game_events(mut events: ReadInsertMessage<GameEvent>, state: Res<ClientState>) {
+fn read_game_events(
+    mut events: ReadInsertMessage<GameEvent>,
+    state: Res<ClientState>,
+    bank: Res<SoundBank>,
+    mut commands: Commands,
+) {
     for event in events.read() {
         if std::env::var_os("DODGEBALL_LOG_EVENTS").is_some() {
             debug!("game event: {}", event.row.data);
         }
-        let _ = &state;
+        match serde_json::from_str::<SfxEvent>(&event.row.data) {
+            Ok(sfx) => bank.play(&mut commands, state.muted, sfx),
+            Err(error) => debug!("unrecognised game event {}: {error}", event.row.data),
+        }
     }
 }
 

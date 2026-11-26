@@ -11,7 +11,9 @@ use bevy::prelude::*;
 use bevy::window::{MonitorSelection, PrimaryWindow, WindowMode};
 use bevy_stdb::prelude::StdbConnection;
 use dodgeball_bindings::DbConnection;
-use dodgeball_sim::types::{Phase, Team};
+use dodgeball_sim::types::{Phase, SfxEvent, Team};
+
+use crate::audio::SoundBank;
 
 use crate::consts::*;
 use crate::input::{ui_offset, ui_scale, InputState};
@@ -1459,11 +1461,16 @@ pub fn handle_actions(
     mut state: ResMut<ClientState>,
     mut window: Query<&mut Window, With<PrimaryWindow>>,
     mut input: ResMut<InputState>,
+    bank: Res<SoundBank>,
+    mut commands: Commands,
     _time: Res<Time>,
 ) {
     for (interaction, action) in &mut buttons {
         if *interaction != Interaction::Pressed {
             continue;
+        }
+        if !matches!(action.0, UiAction::ToggleMute) {
+            bank.play(&mut commands, state.muted, SfxEvent::Ui);
         }
         match action.0 {
             UiAction::StartMatch | UiAction::Rematch => {
@@ -1489,6 +1496,7 @@ pub fn handle_actions(
             UiAction::ToggleMute => {
                 state.muted = !state.muted;
                 platform::save_muted(state.muted);
+                bank.play(&mut commands, state.muted, SfxEvent::Ui);
             }
             UiAction::EditName => {
                 state.editing_name = true;
