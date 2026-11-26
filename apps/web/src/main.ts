@@ -52,8 +52,7 @@ function loadSettings(): Settings {
 
 const settings = loadSettings();
 const uri = (import.meta.env.VITE_SPACETIME_URI as string | undefined) ?? 'ws://localhost:3000';
-const database =
-  (import.meta.env.VITE_SPACETIME_DB as string | undefined) ?? 'dodgeball-simulator';
+const database = (import.meta.env.VITE_SPACETIME_DB as string | undefined) ?? 'dodgeball-simulator';
 
 // Keep a tiny debug handle for browser smoke tests and console inspection.
 // This must be installed before `start`, which runs the Bevy event loop and

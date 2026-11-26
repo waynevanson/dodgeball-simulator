@@ -1,4 +1,6 @@
-//! Small platform boundary for persistence and window actions.
+//! Small platform boundary for persistence, window actions and speech.
+
+use bevy::window::Window;
 
 #[cfg(target_arch = "wasm32")]
 fn storage() -> Option<web_sys::Storage> {
@@ -70,4 +72,38 @@ pub fn load_muted() -> bool {
 
 pub fn save_muted(muted: bool) {
     save("muted", if muted { "1" } else { "0" });
+}
+
+/// Toggle fullscreen the way each target expects: the browser Fullscreen API on
+/// wasm, and the window mode on native.
+pub fn toggle_fullscreen(window: &mut Window) {
+    #[cfg(target_arch = "wasm32")]
+    {
+        let _ = window;
+        toggle_browser_fullscreen();
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        use bevy::window::{MonitorSelection, WindowMode};
+        window.mode = match window.mode {
+            WindowMode::Windowed => WindowMode::BorderlessFullscreen(MonitorSelection::Primary),
+            _ => WindowMode::Windowed,
+        };
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+fn toggle_browser_fullscreen() {
+    let Some(document) = web_sys::window().and_then(|window| window.document()) else {
+        return;
+    };
+    if document.fullscreen_element().is_some() {
+        document.exit_fullscreen();
+    } else if let Some(element) = document
+        .get_element_by_id("app")
+        .or_else(|| document.document_element())
+    {
+        // Rejection (for example a non-gesture call) is harmless.
+        let _ = element.request_fullscreen();
+    }
 }

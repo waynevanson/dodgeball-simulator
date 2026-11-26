@@ -8,7 +8,7 @@ use bevy::color::Alpha;
 use bevy::input::keyboard::KeyboardInput;
 use bevy::input::ButtonState;
 use bevy::prelude::*;
-use bevy::window::{MonitorSelection, PrimaryWindow, WindowMode};
+use bevy::window::{Ime, PrimaryWindow};
 use bevy_stdb::prelude::StdbConnection;
 use dodgeball_bindings::DbConnection;
 use dodgeball_sim::types::{Phase, SfxEvent, Team};
@@ -33,7 +33,6 @@ pub enum UiAction {
     Fullscreen,
     ToggleMute,
     EditName,
-    SubmitName,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -46,8 +45,6 @@ pub enum TextKind {
     Rush,
     Sudden,
     Hint,
-    BlueName,
-    RedName,
     Result,
     Banner,
     Sound,
@@ -1272,7 +1269,7 @@ pub fn update_texts(
                     } else {
                         " "
                     };
-                    format!("{}{}", state.name_draft, caret)
+                    format!("{}{}{}", state.name_draft, state.name_preedit, caret)
                 } else if state.player_name.is_empty() {
                     "Crispy".to_string()
                 } else {
@@ -1319,8 +1316,6 @@ pub fn update_texts(
                 DANGER.with_alpha(if f.sudden_death { 0.9 } else { 0.0 }),
             ),
             TextKind::Hint => (hint_text(f), INK_DIM.with_alpha(0.65)),
-            TextKind::BlueName => ("BLUE".to_string(), BLUE.main),
-            TextKind::RedName => ("RED".to_string(), RED.main),
             TextKind::Result => {
                 let value = match f.match_winner {
                     Some(Team::Blue) => "BLUE WINS".to_string(),
@@ -1474,23 +1469,25 @@ pub fn handle_actions(
         }
         match action.0 {
             UiAction::StartMatch | UiAction::Rematch => {
+                commit_name_if_editing(&mut state, connection.as_deref());
                 if let Some(connection) = connection.as_deref() {
                     request_start_match(Some(connection));
                 }
             }
             UiAction::Rules => state.screen = UiScreen::Rules,
             UiAction::Back => state.screen = UiScreen::Menu,
-            UiAction::Resume => state.screen = UiScreen::None,
+            UiAction::Resume => {
+                commit_name_if_editing(&mut state, connection.as_deref());
+                state.screen = UiScreen::None;
+            }
             UiAction::Pause => state.screen = UiScreen::Pause,
-            UiAction::Menu => state.screen = UiScreen::Menu,
+            UiAction::Menu => {
+                commit_name_if_editing(&mut state, connection.as_deref());
+                state.screen = UiScreen::Menu;
+            }
             UiAction::Fullscreen => {
                 if let Ok(mut window) = window.single_mut() {
-                    window.mode = match window.mode {
-                        WindowMode::Windowed => {
-                            WindowMode::BorderlessFullscreen(MonitorSelection::Primary)
-                        }
-                        _ => WindowMode::Windowed,
-                    };
+                    platform::toggle_fullscreen(&mut window);
                 }
             }
             UiAction::ToggleMute => {
@@ -1501,60 +1498,126 @@ pub fn handle_actions(
             UiAction::EditName => {
                 state.editing_name = true;
                 state.name_draft = state.player_name.clone();
+                state.name_preedit.clear();
                 state.screen = UiScreen::Menu;
-            }
-            UiAction::SubmitName => {
-                let name = clean_name(&state.name_draft);
-                state.player_name = name.clone();
-                state.editing_name = false;
-                platform::save_player_name(&name);
-                if let Some(connection) = connection.as_deref() {
-                    request_set_name(Some(connection), &name);
-                }
             }
         }
         input.mouse_used = false;
     }
 }
 
-pub fn name_input(
-    mut events: MessageReader<KeyboardInput>,
-    mut state: ResMut<ClientState>,
-    connection: Option<Res<StdbConnection<DbConnection>>>,
+fn finish_name_edit(state: &mut ClientState) -> Option<String> {
+    if !state.editing_name {
+        return None;
+    }
+    let name = clean_name(&state.name_draft);
+    state.player_name = name.clone();
+    state.editing_name = false;
+    state.name_preedit.clear();
+    Some(name)
+}
+
+fn commit_name_if_editing(
+    state: &mut ClientState,
+    connection: Option<&StdbConnection<DbConnection>>,
 ) {
-    for event in events.read() {
-        if !state.editing_name || event.state != ButtonState::Pressed {
-            continue;
+    let Some(name) = finish_name_edit(state) else {
+        return;
+    };
+    platform::save_player_name(&name);
+    if let Some(connection) = connection {
+        request_set_name(Some(connection), &name);
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+enum NameEdit {
+    Cancel,
+    Commit(String),
+}
+
+fn apply_name_edit(state: &mut ClientState, key: KeyCode, text: Option<&str>) -> Option<NameEdit> {
+    if !state.editing_name {
+        return None;
+    }
+    match key {
+        KeyCode::Escape => {
+            state.editing_name = false;
+            state.name_draft.clear();
+            state.name_preedit.clear();
+            Some(NameEdit::Cancel)
         }
-        match event.key_code {
-            KeyCode::Escape => {
-                state.editing_name = false;
-                state.name_draft.clear();
-            }
-            KeyCode::Enter => {
-                let name = clean_name(&state.name_draft);
-                state.player_name = name.clone();
-                state.editing_name = false;
-                platform::save_player_name(&name);
-                if let Some(connection) = connection.as_deref() {
-                    request_set_name(Some(connection), &name);
-                }
-            }
-            KeyCode::Backspace => {
+        KeyCode::Enter => {
+            let name = finish_name_edit(state)?;
+            Some(NameEdit::Commit(name))
+        }
+        KeyCode::Backspace => {
+            // While an IME composition is active the OS owns the preedit text;
+            // deleting it is handled by the following Preedit event.
+            if state.name_preedit.is_empty() {
                 state.name_draft.pop();
             }
-            _ => {
-                if let Some(text) = &event.text {
-                    for character in text.chars() {
-                        if !character.is_control()
-                            && state.name_draft.chars().count()
-                                < dodgeball_sim::constants::PLAYER_NAME_MAX
-                        {
-                            state.name_draft.push(character);
-                        }
-                    }
-                }
+            None
+        }
+        _ => {
+            if let Some(text) = text {
+                push_name_text(state, text);
             }
+            None
+        }
+    }
+}
+
+fn push_name_text(state: &mut ClientState, text: &str) {
+    for character in text.chars() {
+        if character.is_control() {
+            continue;
+        }
+        if state.name_draft.chars().count() >= dodgeball_sim::constants::PLAYER_NAME_MAX {
+            break;
+        }
+        state.name_draft.push(character);
+    }
+}
+
+pub fn name_input(
+    mut events: MessageReader<KeyboardInput>,
+    mut ime: MessageReader<Ime>,
+    mut state: ResMut<ClientState>,
+    connection: Option<Res<StdbConnection<DbConnection>>>,
+    mut windows: Query<&mut Window, With<PrimaryWindow>>,
+) {
+    if let Ok(mut window) = windows.single_mut() {
+        if window.ime_enabled != state.editing_name {
+            window.ime_enabled = state.editing_name;
+        }
+    }
+
+    for event in events.read() {
+        if event.state != ButtonState::Pressed {
+            continue;
+        }
+        if let Some(NameEdit::Commit(name)) =
+            apply_name_edit(&mut state, event.key_code, event.text.as_deref())
+        {
+            platform::save_player_name(&name);
+            if let Some(connection) = connection.as_deref() {
+                request_set_name(Some(connection), &name);
+            }
+        }
+    }
+
+    for event in ime.read() {
+        if !state.editing_name {
+            continue;
+        }
+        match event {
+            Ime::Preedit { value, .. } => state.name_preedit = value.clone(),
+            Ime::Commit { value, .. } => {
+                state.name_preedit.clear();
+                push_name_text(&mut state, value);
+            }
+            Ime::Enabled { .. } | Ime::Disabled { .. } => {}
         }
     }
 }
@@ -1600,5 +1663,165 @@ impl FrameExt for dodgeball_sim::snapshot::Frame {
             Team::Blue => &self.roster.blue,
             Team::Red => &self.roster.red,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn state_with_draft(draft: &str) -> ClientState {
+        let mut state = ClientState::new(
+            "Player".to_string(),
+            false,
+            false,
+            "uri".into(),
+            "db".into(),
+        );
+        state.editing_name = true;
+        state.name_draft = draft.to_string();
+        state
+    }
+
+    #[test]
+    fn escape_cancels_name_editing() {
+        let mut state = state_with_draft("Draft");
+        state.name_preedit = "pre".to_string();
+        assert_eq!(
+            apply_name_edit(&mut state, KeyCode::Escape, None),
+            Some(NameEdit::Cancel)
+        );
+        assert!(!state.editing_name);
+        assert!(state.name_draft.is_empty());
+        assert!(state.name_preedit.is_empty());
+    }
+
+    #[test]
+    fn enter_commits_a_cleaned_name() {
+        let mut state = state_with_draft("  New   Name ");
+        assert_eq!(
+            apply_name_edit(&mut state, KeyCode::Enter, None),
+            Some(NameEdit::Commit("New Name".to_string()))
+        );
+        assert!(!state.editing_name);
+        assert_eq!(state.player_name, "New Name");
+    }
+
+    #[test]
+    fn backspace_does_not_edit_during_ime_composition() {
+        let mut state = state_with_draft("abc");
+        state.name_preedit = "x".to_string();
+        assert_eq!(apply_name_edit(&mut state, KeyCode::Backspace, None), None);
+        assert_eq!(state.name_draft, "abc");
+
+        state.name_preedit.clear();
+        assert_eq!(apply_name_edit(&mut state, KeyCode::Backspace, None), None);
+        assert_eq!(state.name_draft, "ab");
+    }
+
+    #[test]
+    fn typed_text_filters_controls_and_honours_the_limit() {
+        let mut state = state_with_draft("");
+        push_name_text(&mut state, "a\u{0}b");
+        assert_eq!(state.name_draft, "ab");
+        push_name_text(&mut state, &"x".repeat(50));
+        assert_eq!(
+            state.name_draft.chars().count(),
+            dodgeball_sim::constants::PLAYER_NAME_MAX
+        );
+    }
+
+    fn app_with_name_editing() -> (App, Entity) {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.add_message::<KeyboardInput>();
+        app.add_message::<Ime>();
+        let mut state = ClientState::new(
+            "Player".to_string(),
+            false,
+            false,
+            "uri".into(),
+            "db".into(),
+        );
+        state.editing_name = true;
+        app.insert_resource(state);
+        let window = app
+            .world_mut()
+            .spawn((Window::default(), PrimaryWindow))
+            .id();
+        app.add_systems(Update, name_input);
+        (app, window)
+    }
+
+    fn key(window: Entity, code: KeyCode, text: Option<&str>) -> KeyboardInput {
+        KeyboardInput {
+            key_code: code,
+            logical_key: bevy::input::keyboard::Key::Character("a".into()),
+            state: ButtonState::Pressed,
+            text: text.map(Into::into),
+            repeat: false,
+            window,
+        }
+    }
+
+    #[test]
+    fn keyboard_text_and_enter_commit_the_name() {
+        let (mut app, window) = app_with_name_editing();
+        app.world_mut()
+            .write_message(key(window, KeyCode::KeyA, Some("A")));
+        app.update();
+        assert_eq!(app.world().resource::<ClientState>().name_draft, "A");
+
+        app.world_mut()
+            .write_message(key(window, KeyCode::Enter, None));
+        app.update();
+        let state = app.world().resource::<ClientState>();
+        assert!(!state.editing_name);
+        assert_eq!(state.player_name, "A");
+    }
+
+    #[test]
+    fn ime_commit_appends_to_the_name() {
+        let (mut app, window) = app_with_name_editing();
+        app.world_mut().write_message(Ime::Preedit {
+            window,
+            value: "に".to_string(),
+            cursor: None,
+        });
+        app.update();
+        assert_eq!(app.world().resource::<ClientState>().name_preedit, "に");
+
+        app.world_mut().write_message(Ime::Commit {
+            window,
+            value: "日本".to_string(),
+        });
+        app.update();
+        let state = app.world().resource::<ClientState>();
+        assert_eq!(state.name_draft, "日本");
+        assert!(state.name_preedit.is_empty());
+    }
+
+    #[test]
+    fn escape_and_ime_state_follow_the_editor() {
+        let (mut app, window) = app_with_name_editing();
+        app.update();
+        assert!(app.world().get::<Window>(window).unwrap().ime_enabled);
+
+        app.world_mut()
+            .write_message(key(window, KeyCode::Escape, None));
+        app.update();
+        assert!(!app.world().resource::<ClientState>().editing_name);
+
+        app.update();
+        assert!(!app.world().get::<Window>(window).unwrap().ime_enabled);
+    }
+
+    #[test]
+    fn formatting_clocks_never_go_negative() {
+        assert_eq!(format_clock(-1.0), "0:00");
+        assert_eq!(format_clock(0.0), "0:00");
+        assert_eq!(format_clock(59.9), "0:59");
+        assert_eq!(format_clock(60.0), "1:00");
+        assert_eq!(format_clock(125.4), "2:05");
     }
 }

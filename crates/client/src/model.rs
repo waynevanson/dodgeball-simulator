@@ -49,10 +49,11 @@ pub struct ClientState {
     pub view: Frame,
     pub editing_name: bool,
     pub name_draft: String,
+    /// In-progress IME composition, displayed after the draft until committed.
+    pub name_preedit: String,
     pub screen: UiScreen,
     pub show_touch: bool,
     pub portrait: bool,
-    pub dirty_settings: bool,
 }
 
 #[derive(Clone)]
@@ -97,10 +98,10 @@ impl ClientState {
             view: placeholder,
             editing_name: false,
             name_draft: String::new(),
+            name_preedit: String::new(),
             screen: UiScreen::Menu,
             show_touch: false,
             portrait: false,
-            dirty_settings: false,
         }
     }
 
@@ -328,3 +329,178 @@ pub fn team_lists(frame: &Frame, team: Team) -> &Vec<dodgeball_sim::snapshot::Hu
 
 #[derive(Resource, Clone)]
 pub struct ViewFrame(pub Frame);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use dodgeball_sim::snapshot::{
+        ActionOut, BallOut, BallStateOut, BallTagOut, CarryOut, ConditionOut, CooldownsOut,
+        HeldOut, PlayerOut, PlayerTagOut, StatsOut, TrailOut, TransformOut,
+    };
+
+    fn client_state() -> ClientState {
+        ClientState::new(
+            "Player".to_string(),
+            false,
+            false,
+            "uri".into(),
+            "db".into(),
+        )
+    }
+
+    fn player(id: u32, x: f64, y: f64) -> PlayerOut {
+        PlayerOut {
+            id,
+            last_input_seq: 0,
+            transform: TransformOut {
+                x,
+                y,
+                vx: 1.0,
+                vy: 2.0,
+                radius: 20.0,
+                facing: 0.0,
+            },
+            tag: PlayerTagOut {
+                name: format!("P{id}"),
+                number: id,
+                team: Team::Blue,
+                slot: id as usize,
+                owner: Some(1),
+                is_human: true,
+                is_you: false,
+                glasses: false,
+            },
+            condition: ConditionOut {
+                alive: true,
+                has_glasses: true,
+                entering_time: 0.0,
+                hit_flash: 0.0,
+                out_at: 0.0,
+                out_x: 0.0,
+                out_y: 0.0,
+            },
+            carry: CarryOut { ball: None },
+            action: ActionOut {
+                charge: 0.0,
+                charging: false,
+                dash_time: 0.0,
+                dash_cd: 0.0,
+                dash_x: 0.0,
+                dash_y: 0.0,
+            },
+            cooldowns: CooldownsOut {
+                catch_window: 0.0,
+                catch_cd: 0.0,
+                throw_cd: 0.0,
+                pickup_cd: 0.0,
+            },
+            trail: TrailOut { points: Vec::new() },
+            stats: StatsOut {
+                throws: 0,
+                catches: 0,
+                outs: 0,
+            },
+        }
+    }
+
+    fn ball(id: u32, x: f64, y: f64) -> BallOut {
+        BallOut {
+            id,
+            transform: TransformOut {
+                x,
+                y,
+                vx: 3.0,
+                vy: 4.0,
+                radius: 10.0,
+                facing: 0.0,
+            },
+            tag: BallTagOut {
+                spin: 0.0,
+                spin_v: 0.0,
+                bob: 0.0,
+                age: 0.0,
+            },
+            state: BallStateOut {
+                live: true,
+                armed: true,
+                rush: false,
+                can_out: true,
+                team: Some(Team::Blue),
+                touched: false,
+                valid_attempt: true,
+                warning_issued: false,
+            },
+            held: HeldOut { by: None },
+            trail: TrailOut { points: Vec::new() },
+        }
+    }
+
+    #[test]
+    fn clean_name_trims_collapses_controls_and_limits() {
+        assert_eq!(clean_name("  Wayne   Son "), "Wayne Son");
+        assert_eq!(clean_name("a\u{0}b\nc"), "ab c");
+        assert_eq!(
+            clean_name("   "),
+            dodgeball_sim::constants::DEFAULT_CUSTOM_NAME
+        );
+        let long = "x".repeat(dodgeball_sim::constants::PLAYER_NAME_MAX + 10);
+        assert_eq!(
+            clean_name(&long).chars().count(),
+            dodgeball_sim::constants::PLAYER_NAME_MAX
+        );
+    }
+
+    #[test]
+    fn blend_interpolates_matching_players_and_balls() {
+        let mut from = empty_frame("Player", 0);
+        from.players.push(player(1, 0.0, 0.0));
+        from.balls.push(ball(1, 0.0, 0.0));
+
+        let mut to = empty_frame("Player", 0);
+        to.players.push(player(1, 10.0, 20.0));
+        to.balls.push(ball(1, 30.0, 40.0));
+
+        let blended = blend(&from, &to, 0.25);
+        assert!((blended.players[0].transform.x - 2.5).abs() < 1e-9);
+        assert!((blended.players[0].transform.y - 5.0).abs() < 1e-9);
+        assert!((blended.players[0].transform.vx - 1.0).abs() < 1e-9);
+        assert!((blended.balls[0].transform.x - 7.5).abs() < 1e-9);
+        assert!((blended.balls[0].transform.y - 10.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn build_view_interpolates_and_extrapolates() {
+        let mut state = client_state();
+
+        let mut first = empty_frame("Player", 0);
+        first.players.push(player(1, 0.0, 0.0));
+        let mut second = empty_frame("Player", 0);
+        second.players.push(player(1, 100.0, 0.0));
+
+        state.push_frame(first, 0.0, 1);
+        state.push_frame(second, 1.0, 2);
+
+        // target = now - INTERP_DELAY
+        let view = state.build_view(0.59);
+        assert!((view.players[0].transform.x - 50.0).abs() < 1e-9);
+
+        let extrapolated = state.build_view(1.09 + 0.05);
+        assert!((extrapolated.players[0].transform.x - 100.05).abs() < 1e-9);
+    }
+
+    #[test]
+    fn decorate_marks_the_local_owner() {
+        let mut state = client_state();
+        state.local_owner = Some(7);
+        let mut frame = empty_frame("Player", 0);
+        let mut me = player(3, 0.0, 0.0);
+        me.tag.owner = Some(7);
+        frame.players.push(me);
+        frame.players.push(player(4, 0.0, 0.0));
+
+        let decorated = state.decorate(frame);
+        assert!(decorated.players[0].tag.is_you);
+        assert!(!decorated.players[1].tag.is_you);
+        assert_eq!(decorated.lineup.custom_name, "Player");
+    }
+}

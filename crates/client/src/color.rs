@@ -2,8 +2,7 @@ use bevy::color::Color;
 
 /// Parse the CSS-ish colour strings emitted by the simulation snapshot.
 ///
-/// The simulation intentionally keeps the original strings so the old Canvas
-/// renderer and the Rust renderer can share one wire format. This parser covers
+/// The simulation keeps CSS-ish colour strings as its wire format. This parser covers
 /// the formats the game actually emits: `#rgb`, `#rrggbb`, `rgb(...)` and
 /// `rgba(...)`.
 pub fn parse_css(value: &str) -> Color {
@@ -62,5 +61,70 @@ fn parse_hex(hex: &str) -> Option<Color> {
             Some(Color::srgba_u8(r, g, b, a))
         }
         _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn rgba(color: Color) -> [f32; 4] {
+        let color = color.to_srgba();
+        [color.red, color.green, color.blue, color.alpha]
+    }
+
+    fn assert_rgba(actual: Color, expected: [f32; 4]) {
+        let actual = rgba(actual);
+        for (actual, expected) in actual.iter().zip(expected) {
+            assert!((actual - expected).abs() < 1e-5, "{actual} != {expected}");
+        }
+    }
+
+    #[test]
+    fn parses_short_and_long_hex() {
+        assert_rgba(
+            parse_css("#abc"),
+            [
+                0xaa as f32 / 255.0,
+                0xbb as f32 / 255.0,
+                0xcc as f32 / 255.0,
+                1.0,
+            ],
+        );
+        assert_rgba(
+            parse_css(" #112233 "),
+            [
+                0x11 as f32 / 255.0,
+                0x22 as f32 / 255.0,
+                0x33 as f32 / 255.0,
+                1.0,
+            ],
+        );
+        assert_rgba(
+            parse_css("#11223344"),
+            [
+                0x11 as f32 / 255.0,
+                0x22 as f32 / 255.0,
+                0x33 as f32 / 255.0,
+                0x44 as f32 / 255.0,
+            ],
+        );
+    }
+
+    #[test]
+    fn parses_rgb_and_rgba() {
+        assert_rgba(parse_css("rgb(255, 0, 51)"), [1.0, 0.0, 51.0 / 255.0, 1.0]);
+        assert_rgba(
+            parse_css("rgba(10,20,30,0.5)"),
+            [10.0 / 255.0, 20.0 / 255.0, 30.0 / 255.0, 0.5],
+        );
+    }
+
+    #[test]
+    fn malformed_values_fall_back_to_white() {
+        assert_rgba(parse_css(""), [1.0, 1.0, 1.0, 1.0]);
+        assert_rgba(parse_css("#12"), [1.0, 1.0, 1.0, 1.0]);
+        assert_rgba(parse_css("rgb(1,2)"), [1.0, 1.0, 1.0, 1.0]);
+        assert_rgba(parse_css("rgb(1,2,3"), [1.0, 1.0, 1.0, 1.0]);
     }
 }
