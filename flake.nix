@@ -1,5 +1,5 @@
 {
-  description = "Dodgeball Simulator: Rust simulation core, TypeScript canvas presentation";
+  description = "Dodgeball Simulator: Rust simulation, SpacetimeDB module, shared Bevy client";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";

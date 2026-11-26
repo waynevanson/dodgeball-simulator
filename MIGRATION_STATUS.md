@@ -1,6 +1,7 @@
 # Rust/Bevy migration status — paused
 
-Last updated: after adding local-player/ball prediction and reconciliation.
+Last updated: after restoring generated sound effects and migrating the dev
+shell to devenv.
 
 ## Goal
 
@@ -26,11 +27,30 @@ SpacetimeDB module in `crates/server`.
 - Added `crates/client-web` — wasm `cdylib` entry.
 - Added `default-members = ["crates/sim", "crates/server"]`.
 - Bumped SpacetimeDB module crate and Rust client SDK to `=2.16.3`.
-- Added native build dependencies to `flake.nix`:
+- Added native build dependencies to the dev shell (`devenv.nix`):
   `pkg-config`, `wayland`, `libxkbcommon`, `openssl`, `systemd`.
 - Updated the Rust workspace release profile to remove the previous
   `strip = "symbols"` wasm-bindgen warning.
 - Updated `pnpm-lock.yaml`; removed the old web `spacetimedb` npm dependency.
+
+### Dev shell / devenv
+
+- Replaced the hand-written `pkgs.mkShell` with `devenv.lib.mkShell`; the shell
+  configuration lives in `devenv.nix` and `nix/spacetime.nix`.
+- `.envrc` uses `use flake . --no-pure-eval` because devenv resolves
+  `devenv.root` from `$PWD`.
+- `services.spacetime` installs the pinned SpacetimeDB CLI/server (2.16.3) and
+  `devenv up` starts a local server on port 3000.
+- Restored `wasm-bindgen-cli` 0.2.130 to the dev shell (it had been dropped in
+  an earlier commit), so `pnpm web:wasm`, `pnpm dev:client` and `pnpm build` work
+  from a clean shell again.
+- Added `alsa-lib` on Linux for native Bevy audio; the desktop CI installs
+  `libasound2-dev` for the same reason.
+- Updated the stale flake description that still mentioned a TypeScript canvas
+  presentation.
+- `scripts/build-web-wasm.sh` now maps `PROFILE=dev` to Cargo's `debug/`
+  directory and no longer requires a manually supplied `WASM_BINDGEN` path when
+  run inside the dev shell.
 
 ### Simulation DTOs
 
@@ -67,6 +87,26 @@ SpacetimeDB module in `crates/server`.
 - Enabled required Bevy features: `keyboard`, `mouse`, `touch`, `png`,
   `bevy_audio` is **not** enabled (see remaining work).
 
+### Audio
+
+- Added `crates/client/src/audio/`:
+  - `synth.rs` renders tones, filtered hiss and exponential envelopes into mono
+    16-bit 44.1 kHz WAV buffers, reproducing the old WebAudio synth;
+  - `voices.rs` defines every game voice from `synth.rs` and pre-renders four
+    loudness variants each for throws and bounces, plus both beep pitches;
+  - `mod.rs` owns the `SoundBank` resource and maps each `SfxEvent` to an
+    `AudioPlayer` spawned with `PlaybackSettings::DESPAWN`.
+- Enabled Bevy `bevy_audio` + `wav` features; no audio files are shipped.
+- `net::read_game_events` now deserialises `game_event.data` as `SfxEvent` and
+  plays it, keeping the existing `DODGEBALL_LOG_EVENTS` debug log.
+- UI button presses play the `ui` clip; toggling mute persists through
+  `platform.rs` and skips all playback, including the headshot call.
+- Browser builds keep the spoken "HEADSHOT" via `speechSynthesis`; native builds
+  play the synth scream only.
+- `apps/web/src/main.ts` tracks every `AudioContext` created by the wasm/rodio
+  backend and resumes suspended contexts on pointer/key gestures, because
+  browsers block audio until the first interaction.
+
 ### Client prediction / netcode
 
 - Added `crates/client/src/predict.rs`:
@@ -84,7 +124,8 @@ SpacetimeDB module in `crates/server`.
 
 ### Browser shell
 
-- `apps/web/src/main.ts` now only initializes wasm and calls
+- `apps/web/src/main.ts` loads the wasm glue dynamically after installing the
+  audio-context tracking patch, then calls
   `start(uri, db, name, muted, autostart)`.
 - Deleted the old TypeScript game renderer/UI/input/online code:
   `apps/web/src/game/` and `apps/web/src/module_bindings/`.
@@ -124,28 +165,46 @@ SpacetimeDB module in `crates/server`.
   original filled-trail look better.
 - Removed temporary web-only UI/frame debug dumps. Intentional debug aids
   remain: `DODGEBALL_AUTOSTART`, `DODGEBALL_SCREENSHOT`, `?autostart=1`,
-  `RUST_LOG=debug`.
+  `DODGEBALL_LOG_EVENTS`, `window.__dodgeball`, `RUST_LOG=debug`.
 
 ### Verification performed
 
-- `cargo test -p dodgeball-sim -p dodgeball-server` — all tests pass.
-- `cargo check -p dodgeball-client -p dodgeball-client-desktop` — passes.
+- `cargo test --workspace` — all tests pass, including 8 client tests for the
+  synth, voice bank and input prediction.
 - `cargo check -p dodgeball-client-web --target wasm32-unknown-unknown` —
-  passes.
+  passes with Bevy audio enabled.
+- `cargo check -p dodgeball-client -p dodgeball-client-desktop` — passes.
+- `apps/web` `tsc --noEmit` — passes once the wasm glue exists (the dev shell
+  now provides the matching `wasm-bindgen`).
+- Dev-profile wasm build + Vite + headless Chromium rendered the menu with the
+  audio plugin initialised (`/tmp/menu-audio.png`). No SpacetimeDB server was
+  running, so the connection showed the expected `ONLINE | ERROR` state.
+- Native builds on this machine needed `NIX_CFLAGS_LINK=` cleared because the
+  host's nix-ld `/usr/lib` symlinks point at glibc 2.42 while the unstable
+  `alsa-lib` needs 2.44. This is a local NixOS environment quirk, not a repo
+  change.
+- `cargo test -p dodgeball-sim -p dodgeball-server` — all tests pass.
 - The new client crates are formatted. Existing simulation files were left in their prior formatting to keep this migration diff focused.
-- `pnpm typecheck` — passes.
+- `pnpm typecheck` — passes with the generated wasm glue present.
 - Native desktop launched against a local SpacetimeDB server and rendered a
   playing match (software Vulkan/llvmpipe in this environment).
 - Browser launched headlessly in Chromium against the local server and rendered
   a playing match.
 - Browser CDP click test successfully started a match.
 - Latest production wasm build:
-  - `apps/web/src/wasm/dodgeball_client_bg.wasm`: ~20.3 MB
-  - Vite gzip report: ~6.3 MB
-  - Vite JS bundle: ~56 KB.
+  - `apps/web/src/wasm/dodgeball_client_bg.wasm`: ~20.7 MB
+  - Vite gzip report: ~6.5 MB
+  - Vite JS bundle: ~58 KB.
+- Audio added roughly 0.4 MB to the wasm bundle and 0.2 MB gzip
+  (`bevy_audio`, `rodio`, `hound`, `cpal`).
 - Latest successful screenshots:
   - native playing match: `/tmp/game4.png`;
-  - browser playing match: `/tmp/web_click_final.png`.
+  - browser playing match: `/tmp/web_click_final.png`;
+  - browser playing match with audio enabled: `/tmp/game-audio-playing.png`;
+  - `docs/screenshot.png` replaced with the 1280x720 Bevy capture.
+- Browser CDP gesture test against a local server: `AudioContext.state` was
+  `suspended` at startup and became `running` after a synthetic click, while the
+  playing match rendered normally.
 
 ### CI / docs
 
@@ -154,36 +213,27 @@ SpacetimeDB module in `crates/server`.
   builds.
 - README rewritten for Rust/Bevy, browser + desktop, 2.16.3, and new commands.
 - Added this status file.
+- Replaced the stale Canvas `docs/screenshot.png` with a current Bevy capture.
 
 ---
 
 ## Remaining work
 
-### 1. Audio (largest feature gap)
+### 1. Audio follow-ups (feature complete)
 
-The old TypeScript WebAudio synth was deleted with the Canvas client. The Bevy
-client currently has **no sound**. The top-bar sound button toggles a resource
-but there is no output.
+The Bevy client now synthesises and plays every `SfxEvent`. Remaining work is
+verification and polish rather than implementation:
 
-Options:
+- confirm sound on a real audio device for native Linux/Windows/macOS;
+- confirm the browser unlock flow in Chrome, Firefox and Safari, including a
+  gesture that happens while the wasm module is still loading;
+- check `speechSynthesis` availability/voice differences for HEADSHOT and
+  decide whether to keep it or bundle a clip;
+- consider a volume control (currently mute/on only) and whether `GlobalVolume`
+  should be used for sounds already playing.
 
-- **Bevy audio + generated WAVs (recommended):**
-  - enable Bevy `bevy_audio` + `wav`;
-  - add `pkgs.alsa-lib` to `flake.nix` / Linux CI;
-  - synthesize small WAV buffers at startup for `throw`, `hit`, `headshot`,
-    `catch`, `block`, `pickup`, `bounce`, `dash`, `beep`, `whistle`,
-    `roundWin`, `roundLose`, `matchWin`, `matchLose`, `ui`;
-  - parse `game_event.data` as `SfxEvent` and spawn `AudioPlayer` entities;
-  - apply mute through a global volume/resource;
-  - browser audio unlock on first pointer/key gesture;
-  - decide whether to keep browser `SpeechSynthesis` for HEADSHOT or ship a
-    short voice clip.
-- Or a platform-specific audio bridge:
-  - web: JS WebAudio;
-  - desktop: `rodio`/`cpal`.
-  This avoids Bevy audio but creates two implementations.
-
-Also update README/top-bar once sound exists or hide/remove the sound control.
+Measured wasm cost of audio: ~20.7 MB total / ~6.5 MB gzip, up from ~20.3 MB /
+~6.3 MB before `bevy_audio`.
 
 ### 2. Real-device / real-GPU testing
 
@@ -232,7 +282,6 @@ Still needed:
 - Check `pnpm check` with the new `rust:check:wasm` package selection.
 - Consider a separate client release profile to keep native Bevy optimized while
   using `opt-level="z"` for wasm.
-- Remove/replace stale `docs/screenshot.png` (still an old Canvas screenshot).
 
 ### 5. Code quality / cleanup
 
@@ -253,7 +302,7 @@ Still needed:
 
 ### 6. Performance / size
 
-- 20.3 MB wasm / 6.3 MB gzip is large. Already enabled only the needed Bevy
+- 20.7 MB wasm / 6.5 MB gzip is large. Already enabled only the needed Bevy
   features, but further pruning may be possible:
   - inspect `cargo tree -e features -p dodgeball-client`;
   - consider removing gizmos if dynamic outlines are moved to sprites;
@@ -288,7 +337,7 @@ cargo test -p dodgeball-sim -p dodgeball-server
 cargo check -p dodgeball-client-web --target wasm32-unknown-unknown
 
 # Browser wasm + Vite
-WASM_BINDGEN=/tmp/wasm-bindgen/bin/wasm-bindgen bash scripts/build-web-wasm.sh
+PROFILE=dev bash scripts/build-web-wasm.sh   # fast local builds; default release
 (cd apps/web && pnpm exec vite build)
 (cd apps/web && pnpm exec vite preview --host 127.0.0.1 --port 4173)
 
@@ -302,7 +351,8 @@ DODGEBALL_AUTOSTART=1 DODGEBALL_SCREENSHOT=/tmp/game.png \
 
 ## Definition of done still to reach
 
-- Sound is restored or intentionally removed from UI/README.
+- Sound is restored; real-device and browser-autoplay verification is still
+  outstanding.
 - Real browser + real desktop input/touch/fullscreen/name editing verified.
 - CI browser and desktop builds are green.
 - No stale Canvas/TypeScript references or dead generated artifacts remain.

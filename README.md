@@ -19,11 +19,15 @@ ten-second advantage clock.
 - All game art and UI are rendered by Bevy. There is no Canvas 2D renderer and
   no DOM widget layer.
 - Procedural textures, court art, effects and HUD; zero external art assets.
+- Procedural sound: every effect is synthesised to a WAV buffer at startup, so the
+  game ships with zero audio files.
 - Match/round flow modelled as **ECS state** — a `phase` resource plus a
   transition table.
 - Deterministic, seeded simulation: `cargo test` drives full matches headlessly.
 
-Audio parity is still a follow-up; see [MIGRATION_STATUS.md](MIGRATION_STATUS.md).
+Sound is generated at runtime and the browser unlocks audio on the first
+pointer/key event; see [MIGRATION_STATUS.md](MIGRATION_STATUS.md) for the
+remaining device-testing follow-ups.
 
 ---
 
@@ -148,6 +152,9 @@ Everything visual lives under `crates/client/src`:
 - `render/world.rs` keeps stable sprite entities per player/ball, syncs them
   from the interpolated frame and draws dynamic outlines with Bevy gizmos.
 - `render/effects.rs` pools particles/floaters and applies camera shake.
+- `audio/` synthesises every sound effect as a WAV at startup and plays the
+  simulation's `SfxEvent`s through Bevy audio (the browser adds the spoken
+  "HEADSHOT" call via `speechSynthesis`).
 - `ui/mod.rs` builds the entire interface with Bevy UI: HUD, roster, score,
   menus, pause/results/rules, touch controls, rotate overlay, name editing and
   the flash overlay.
@@ -245,7 +252,7 @@ GitHub Pages, set the repository variables `SPACETIME_URI` and `SPACETIME_DB`.
 
 Requirements: Node 20+, pnpm 10, Rust 1.97.1 with the
 `wasm32-unknown-unknown` target, and `wasm-bindgen-cli` **0.2.130** matching the
-lockfile.
+lockfile. The Nix dev shell provides these, including `wasm-bindgen-cli`.
 
 ```bash
 pnpm install
@@ -288,9 +295,9 @@ DODGEBALL_MUTED=0
 DODGEBALL_AUTOSTART=1
 ```
 
-On Linux, the desktop target needs X11/Wayland development libraries at build
-time and working GPU drivers at runtime. The Nix dev shell includes the build
-dependencies.
+On Linux, the desktop target needs X11/Wayland development libraries, ALSA
+headers (`libasound2-dev` on Debian/Ubuntu) at build time and working GPU/audio
+drivers at runtime. The Nix dev shell includes the build dependencies.
 
 ---
 
@@ -331,6 +338,7 @@ crates/
 ├── server/               # SpacetimeDB module
 ├── client/               # shared Bevy app
 │   └── src/
+│       ├── audio/        # generated sound effects
 │       ├── render/       # court, players, balls, textures, effects
 │       ├── ui/           # HUD, menus, touch controls
 │       ├── input.rs
