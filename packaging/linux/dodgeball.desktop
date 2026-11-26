@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Dodgeball Simulator
+Comment=6v6 browser-style dodgeball against AI and online players
+Exec=dodgeball
+Icon=dodgeball
+Terminal=false
+Categories=Game;ActionGame;
+Keywords=dodgeball;game;multiplayer;
+StartupWMClass=dodgeball
