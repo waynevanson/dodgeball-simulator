@@ -32,7 +32,11 @@ in
     pkgs.systemd
     rust
     binaryen129
-    # The SpacetimeDB CLI and standalone server come from services.spacetime,
-    # pinned to the crate version in Cargo.toml.
+    # Must match the pinned `wasm-bindgen` crate version; wasm-bindgen refuses
+    # to generate glue when the CLI and crate schema versions differ.
+    pkgs.wasm-bindgen-cli_0_2_130
+  ] ++ pkgs.lib.optionals pkgs.stdenv.hostPlatform.isLinux [
+    # cpal/rodio link against ALSA for native Bevy audio.
+    pkgs.alsa-lib
   ];
 }

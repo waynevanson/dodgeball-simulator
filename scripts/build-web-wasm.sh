@@ -7,8 +7,13 @@ cd "$ROOT"
 WASM_BINDGEN="${WASM_BINDGEN:-wasm-bindgen}"
 OUT_DIR="${OUT_DIR:-apps/web/src/wasm}"
 PROFILE="${PROFILE:-release}"
+# Cargo calls the default profile `dev` but writes it to `debug/`.
+PROFILE_DIR="$PROFILE"
+if [ "$PROFILE" = "dev" ]; then
+  PROFILE_DIR="debug"
+fi
 TARGET_DIR="${CARGO_TARGET_DIR:-target}"
-WASM="$TARGET_DIR/wasm32-unknown-unknown/$PROFILE/dodgeball_client_web.wasm"
+WASM="$TARGET_DIR/wasm32-unknown-unknown/$PROFILE_DIR/dodgeball_client_web.wasm"
 
 cargo build -p dodgeball-client-web --target wasm32-unknown-unknown --profile "$PROFILE"
 
