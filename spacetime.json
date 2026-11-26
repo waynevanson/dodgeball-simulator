@@ -2,6 +2,12 @@
   "database": "dodgeball-simulator",
   "module-path": "crates/server",
   "server": "local",
+  "generate": [
+    {
+      "language": "rust",
+      "out_dir": "crates/client-bindings/src"
+    }
+  ],
   "dev": {
     "run": "pnpm dev:client"
   }

@@ -23,3 +23,9 @@ opt-level = "s"
 lto = true
 codegen-units = 1
 panic = "abort"
+
+# Browser builds prefer size over native throughput. `wasm-opt -Oz` still runs
+# on the generated binary, but `opt-level = "z"` lets rustc do its share first.
+[profile.wasm-release]
+inherits = "release"
+opt-level = "z"

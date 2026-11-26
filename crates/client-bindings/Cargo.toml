@@ -7,7 +7,7 @@ license.workspace = true
 authors.workspace = true
 
 [lib]
-path = "src/lib.rs"
+path = "src/mod.rs"
 
 [dependencies]
 spacetimedb-sdk = "=2.16.3"

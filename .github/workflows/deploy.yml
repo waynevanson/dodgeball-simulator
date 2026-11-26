@@ -49,8 +49,8 @@ jobs:
           VITE_SPACETIME_URI: ${{ vars.SPACETIME_URI }}
           VITE_SPACETIME_DB: ${{ vars.SPACETIME_DB }}
         run: |
-          pnpm typecheck
           pnpm rust:test
+          # `pnpm build` builds the wasm client once, then runs tsc and Vite.
           pnpm build
 
       - uses: actions/configure-pages@v5

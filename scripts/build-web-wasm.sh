@@ -6,7 +6,7 @@ cd "$ROOT"
 
 WASM_BINDGEN="${WASM_BINDGEN:-wasm-bindgen}"
 OUT_DIR="${OUT_DIR:-apps/web/src/wasm}"
-PROFILE="${PROFILE:-release}"
+PROFILE="${PROFILE:-wasm-release}"
 # Cargo calls the default profile `dev` but writes it to `debug/`.
 PROFILE_DIR="$PROFILE"
 if [ "$PROFILE" = "dev" ]; then
